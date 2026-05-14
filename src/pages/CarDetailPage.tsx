@@ -1,76 +1,20 @@
-import {
-  ArrowLeft,
-  ArrowRight,
-  CalendarClock,
-  CarFront,
-  Clock3,
-  Fuel,
-  MapPin,
-  ShieldCheck,
-  Users,
-} from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, createSearchParams, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { PageSection } from '../components/PageSection'
 import { Badge } from '../components/ui/badge'
 import { buttonVariants } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
-import { DateTimePicker } from '../components/ui/date-time-picker'
-import { FieldLabel, Label } from '../components/ui/label'
 import { cn } from '../lib/utils'
 import { getCarById } from '../features/cars/api'
+import { BookingQuotePanel } from '../features/cars/BookingQuotePanel'
+import { CarDetailHero } from '../features/cars/CarDetailHero'
+import { CarImageStrip } from '../features/cars/CarImageStrip'
+import { CarOptionsPanel } from '../features/cars/CarOptionsPanel'
+import { CarSpecsGrid } from '../features/cars/CarSpecsGrid'
+import { LocationHoursPanel } from '../features/cars/LocationHoursPanel'
 import type { CarDetailItem } from '../features/cars/types'
-
-const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-function formatMoney(currencyCode: string, value: number) {
-  return new Intl.NumberFormat('en', {
-    style: 'currency',
-    currency: currencyCode,
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
-function estimateRentalDays(pickupAt: string, returnAt: string) {
-  if (!pickupAt || !returnAt) {
-    return 1
-  }
-
-  const pickupTime = new Date(pickupAt).getTime()
-  const returnTime = new Date(returnAt).getTime()
-
-  if (Number.isNaN(pickupTime) || Number.isNaN(returnTime) || returnTime <= pickupTime) {
-    return 1
-  }
-
-  return Math.max(1, Math.ceil((returnTime - pickupTime) / (24 * 60 * 60 * 1000)))
-}
-
-function buildCheckoutLink(params: {
-  carId: string
-  pickupAt: string
-  returnAt: string
-  optionIds: string[]
-}) {
-  const search = createSearchParams(
-    Object.entries({
-      carId: params.carId,
-      pickupAt: params.pickupAt,
-      returnAt: params.returnAt,
-      optionIds: params.optionIds.join(','),
-    }).reduce<Record<string, string>>((acc, [key, value]) => {
-      if (value) {
-        acc[key] = value
-      }
-      return acc
-    }, {}),
-  ).toString()
-
-  return {
-    pathname: '/checkout',
-    search: search ? `?${search}` : '',
-  }
-}
+import { buildCheckoutLink, estimateRentalDays } from '../features/cars/utils/car-detail-utils'
 
 export function CarDetailPage() {
   const { carId } = useParams()
@@ -202,8 +146,6 @@ export function CarDetailPage() {
     )
   }
 
-  const isBookable = car.status === 'AVAILABLE'
-
   return (
     <PageSection
       eyebrow={`${car.countryCode} · ${car.city}`}
@@ -221,215 +163,31 @@ export function CarDetailPage() {
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(330px,0.55fr)]">
           <div className="grid gap-5">
-            <section className="relative min-h-[430px] overflow-hidden rounded-[34px] border border-black/10 bg-forest-900 shadow-[0_30px_80px_rgba(32,48,36,0.18)] max-md:min-h-[320px]">
-              {coverImage ? (
-                <img
-                  src={coverImage}
-                  alt={car.name}
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              ) : null}
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(32,48,36,0.08),rgba(32,48,36,0.74))]" />
-              <div className="absolute right-5 bottom-5 left-5 grid gap-3 text-sand-50">
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full bg-white/18 px-3 py-2 text-sm backdrop-blur">
-                    {car.category}
-                  </span>
-                  <span className="rounded-full bg-white/18 px-3 py-2 text-sm backdrop-blur">
-                    {car.transmission}
-                  </span>
-                  <span className="rounded-full bg-white/18 px-3 py-2 text-sm backdrop-blur">
-                    {car.status}
-                  </span>
-                </div>
-                <h2 className="m-0 font-(--font-heading) text-[clamp(2rem,4vw,3.3rem)] leading-none">
-                  {car.brand} {car.model}
-                </h2>
-              </div>
-            </section>
-
-            {car.images.length > 1 ? (
-              <section className="grid grid-cols-3 gap-3 max-sm:grid-cols-2">
-                {car.images.map((image) => (
-                  <div
-                    key={image.id}
-                    className="relative h-28 overflow-hidden rounded-3xl border border-black/10 bg-black/5"
-                  >
-                    <img
-                      src={image.url}
-                      alt={`${car.name} ${image.sortOrder + 1}`}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                ))}
-              </section>
-            ) : null}
-
-            <section className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
-              {[
-                { icon: Users, label: 'Seats', value: `${car.seats} passengers` },
-                { icon: Fuel, label: 'Fuel', value: car.fuelType },
-                { icon: CarFront, label: 'Vehicle', value: `${car.year} ${car.category}` },
-                { icon: MapPin, label: 'Pickup city', value: car.city },
-              ].map((spec) => {
-                const Icon = spec.icon
-                return (
-                  <Card key={spec.label}>
-                    <CardContent className="flex items-center gap-3">
-                      <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-forest-700/10 text-forest-700">
-                        <Icon className="size-5" />
-                      </span>
-                      <div>
-                        <p className="m-0 text-[0.84rem] text-stone-500">{spec.label}</p>
-                        <strong>{spec.value}</strong>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </section>
+            <CarDetailHero car={car} coverImage={coverImage} />
+            <CarImageStrip carName={car.name} images={car.images} />
+            <CarSpecsGrid car={car} />
           </div>
 
-          <aside className="grid gap-4 self-start lg:sticky lg:top-28">
-            <Card>
-              <CardContent className="grid gap-5">
-                <div>
-                  <Badge variant={isBookable ? 'default' : 'muted'}>
-                    {isBookable ? 'Ready to book' : 'Not bookable'}
-                  </Badge>
-                  <div className="mt-3">
-                    <p className="m-0 font-(--font-heading) text-[2.1rem] leading-none">
-                      {formatMoney(car.currencyCode, car.dailyRate)}
-                      <span className="ml-1 text-base text-stone-500">/day</span>
-                    </p>
-                    <p className="m-0 text-stone-500">
-                      {formatMoney(car.currencyCode, car.hourlyRate)} /hr
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid gap-3">
-                  <Label>
-                    <FieldLabel>Pickup</FieldLabel>
-                    <DateTimePicker
-                      value={pickupAt}
-                      onChange={(value) => updateSearchDate('pickupAt', value)}
-                      placeholder="Pick pickup date"
-                    />
-                  </Label>
-                  <Label>
-                    <FieldLabel>Return</FieldLabel>
-                    <DateTimePicker
-                      value={returnAt}
-                      onChange={(value) => updateSearchDate('returnAt', value)}
-                      placeholder="Pick return date"
-                    />
-                  </Label>
-                </div>
-
-                <div className="grid gap-2 rounded-3xl border border-black/10 bg-white/60 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-stone-500">Rental days</span>
-                    <strong>{rentalDays}</strong>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-stone-500">Options</span>
-                    <strong>{formatMoney(car.currencyCode, optionsTotal)}</strong>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 border-t border-black/10 pt-3">
-                    <span className="font-semibold">Estimated total</span>
-                    <strong>{formatMoney(car.currencyCode, estimatedTotal)}</strong>
-                  </div>
-                </div>
-
-                <Link
-                  to={checkoutLink}
-                  className={cn(buttonVariants(), !isBookable && 'pointer-events-none opacity-55')}
-                >
-                  Continue to Checkout
-                  <ArrowRight className="size-4" />
-                </Link>
-              </CardContent>
-            </Card>
-          </aside>
+          <BookingQuotePanel
+            car={car}
+            pickupAt={pickupAt}
+            returnAt={returnAt}
+            rentalDays={rentalDays}
+            optionsTotal={optionsTotal}
+            estimatedTotal={estimatedTotal}
+            checkoutLink={checkoutLink}
+            isBookable={car.status === 'AVAILABLE'}
+            onDateChange={updateSearchDate}
+          />
         </div>
 
         <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <Card>
-            <CardContent className="grid gap-4">
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="size-5 text-forest-700" />
-                <h2 className="m-0 font-(--font-heading) text-[1.45rem]">
-                  Add-ons
-                </h2>
-              </div>
-              <div className="grid gap-3">
-                {car.options.length > 0 ? (
-                  car.options.map((option) => {
-                    const isSelected = selectedOptionIds.includes(option.id)
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        className={cn(
-                          'grid gap-1 rounded-3xl border p-4 text-left transition',
-                          isSelected
-                            ? 'border-forest-700/35 bg-forest-700/10'
-                            : 'border-black/10 bg-white/58 hover:bg-white/78',
-                        )}
-                        onClick={() => toggleOption(option.id)}
-                      >
-                        <span className="flex items-center justify-between gap-3">
-                          <strong>{option.name}</strong>
-                          <span>{formatMoney(car.currencyCode, option.pricePerDay)} /day</span>
-                        </span>
-                        {option.description ? (
-                          <span className="text-sm text-stone-500">{option.description}</span>
-                        ) : null}
-                      </button>
-                    )
-                  })
-                ) : (
-                  <p className="m-0 text-stone-500">No optional add-ons for this vehicle.</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="grid gap-4">
-              <div className="flex items-center gap-3">
-                <Clock3 className="size-5 text-forest-700" />
-                <h2 className="m-0 font-(--font-heading) text-[1.45rem]">
-                  Pickup Hours
-                </h2>
-              </div>
-              <div className="grid gap-2">
-                {car.locationHours.map((hour) => (
-                  <div
-                    key={hour.dayOfWeek}
-                    className="flex items-center justify-between gap-3 rounded-2xl bg-white/58 px-4 py-3"
-                  >
-                    <span className="font-semibold">{dayNames[hour.dayOfWeek]}</span>
-                    <span className="text-stone-500">
-                      {hour.isClosed ? 'Closed' : `${hour.openTime} - ${hour.closeTime}`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="grid gap-2 rounded-3xl border border-black/10 bg-white/58 p-4">
-                <span className="inline-flex items-center gap-2 font-semibold">
-                  <CalendarClock className="size-4" />
-                  Rental rules
-                </span>
-                <p className="m-0 text-stone-500">
-                  Book at least {car.minAdvanceBookingHr} hours ahead. Maximum rental
-                  length is {car.maxBookingDays} days. A {car.bufferHours}-hour buffer is
-                  reserved after each return.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <CarOptionsPanel
+            car={car}
+            selectedOptionIds={selectedOptionIds}
+            onToggleOption={toggleOption}
+          />
+          <LocationHoursPanel car={car} />
         </section>
       </div>
     </PageSection>
