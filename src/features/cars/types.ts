@@ -2,6 +2,8 @@ export type CarCategory =
   | 'SEDAN'
   | 'SUV'
   | 'VAN'
+  | 'TRUCK'
+  | 'SPORTS'
   | 'LUXURY'
   | 'ELECTRIC'
 
@@ -15,7 +17,7 @@ export type CarListItem = {
   year: number
   category: CarCategory
   countryCode: string
-  countryName: string
+  countryName?: string
   city: string
   timezone: string
   currencyCode: string
@@ -24,9 +26,11 @@ export type CarListItem = {
   seats: number
   transmission: Transmission
   fuelType: string
-  status: 'AVAILABLE' | 'MAINTENANCE'
-  highlight: string
-  features: string[]
+  status: 'AVAILABLE' | 'MAINTENANCE' | 'RETIRED'
+  coverImage?: string | null
+  isAvailable?: boolean
+  highlight?: string
+  features?: string[]
   unavailableDates?: Array<{
     from: string
     to: string

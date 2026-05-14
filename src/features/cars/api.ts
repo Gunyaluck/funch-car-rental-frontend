@@ -1,0 +1,49 @@
+import { api } from '../../api/axios'
+import type { CarFilters, CarListItem } from './types'
+
+type ApiResponse<T> = {
+  data: T
+  meta?: {
+    page?: number
+    limit?: number
+    total?: number
+  }
+}
+
+export type ListCarsResult = {
+  data: CarListItem[]
+  meta: {
+    page: number
+    limit: number
+    total: number
+  }
+}
+
+function buildListCarsParams(filters: CarFilters, limit = 100) {
+  const params: Record<string, string | number> = {
+    limit,
+  }
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) {
+      params[key] = value
+    }
+  })
+
+  return params
+}
+
+export async function listCars(filters: CarFilters, limit = 100): Promise<ListCarsResult> {
+  const response = await api.get<ApiResponse<CarListItem[]>>('/cars', {
+    params: buildListCarsParams(filters, limit),
+  })
+
+  return {
+    data: response.data.data,
+    meta: {
+      page: response.data.meta?.page ?? 1,
+      limit: response.data.meta?.limit ?? limit,
+      total: response.data.meta?.total ?? response.data.data.length,
+    },
+  }
+}

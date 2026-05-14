@@ -15,13 +15,10 @@ import {
   SelectValue,
 } from '../components/ui/select'
 import { CarCard } from '../features/cars/CarCard'
-import {
-  carFilterOptions,
-  defaultCarFilters,
-  filterCars,
-  mockCars,
-} from '../features/cars/mock'
+import { listCars } from '../features/cars/api'
+import { defaultCarFilters } from '../features/cars/constants'
 import type { CarFilters } from '../features/cars/types'
+import type { CarListItem } from '../features/cars/types'
 
 const EMPTY_SELECT_VALUE = '__all__'
 
@@ -49,8 +46,40 @@ function optionItems(items: string[], suffix = '') {
   }))
 }
 
+function uniqueSorted(values: string[]) {
+  return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b))
+}
+
+function optionsFromCars(cars: CarListItem[]) {
+  return {
+    countries: [
+      ...new Map(
+        cars.map((car) => [
+          car.countryCode,
+          {
+            value: car.countryCode,
+            label: car.countryName ?? car.countryCode,
+          },
+        ]),
+      ).values(),
+    ].sort((a, b) => a.label.localeCompare(b.label)),
+    cities: optionItems(uniqueSorted(cars.map((car) => car.city))),
+    categories: optionItems(uniqueSorted(cars.map((car) => car.category))),
+    transmissions: optionItems(uniqueSorted(cars.map((car) => car.transmission))),
+    seats: optionItems(
+      uniqueSorted(cars.map((car) => String(car.seats))),
+      'seats',
+    ),
+  }
+}
+
 export function CarsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const [cars, setCars] = useState<CarListItem[]>([])
+  const [allCars, setAllCars] = useState<CarListItem[]>([])
+  const [totalCars, setTotalCars] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
 
   const filters = useMemo(
     () => filtersFromSearchParams(searchParams),
@@ -62,7 +91,6 @@ export function CarsPage() {
     setDraftFilters(filters)
   }, [filters])
 
-  const filteredCars = useMemo(() => filterCars(mockCars, filters), [filters])
   const activeFilterCount = Object.values(filters).filter(Boolean).length
   const pendingFilterCount = Object.values(draftFilters).filter(Boolean).length
   const hasPendingChanges = useMemo(() => {
@@ -70,14 +98,56 @@ export function CarsPage() {
     return filterKeys.some((key) => filters[key] !== draftFilters[key])
   }, [draftFilters, filters])
 
-  const countryItems = carFilterOptions.countries.map((country) => ({
-    value: country.code,
-    label: country.name,
-  }))
-  const cityItems = optionItems(carFilterOptions.cities)
-  const categoryItems = optionItems(carFilterOptions.categories)
-  const transmissionItems = optionItems(carFilterOptions.transmissions)
-  const seatItems = optionItems(carFilterOptions.seats, 'seats')
+  const filterOptions = useMemo(() => optionsFromCars(allCars), [allCars])
+
+  useEffect(() => {
+    let isCurrent = true
+
+    async function fetchCars() {
+      setIsLoading(true)
+      setErrorMessage('')
+
+      try {
+        const [filteredResult, allResult] = await Promise.all([
+          listCars(filters),
+          allCars.length > 0 ? Promise.resolve(null) : listCars(defaultCarFilters),
+        ])
+
+        if (!isCurrent) {
+          return
+        }
+
+        setCars(filteredResult.data)
+        setTotalCars(filteredResult.meta.total)
+
+        if (allResult) {
+          setAllCars(allResult.data)
+        }
+      } catch (error) {
+        if (!isCurrent) {
+          return
+        }
+
+        setCars([])
+        setTotalCars(0)
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : 'Unable to load cars from the backend.',
+        )
+      } finally {
+        if (isCurrent) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    fetchCars()
+
+    return () => {
+      isCurrent = false
+    }
+  }, [allCars.length, filters])
 
   function updateDraftFilter(name: keyof CarFilters, value: string) {
     setDraftFilters((currentFilters) => ({
@@ -120,7 +190,7 @@ export function CarsPage() {
     <PageSection
       eyebrow="Cars"
       title="Find cars by destination, schedule, and travel fit"
-      description="This listing page is now wired for country-first search, URL-synced filters, and result cards that can later switch from mock data to GET /cars without changing the page contract."
+      description="Search live vehicle inventory from the backend database and keep each search shareable through URL-synced filters."
     >
       <div className="grid gap-6">
         <Card>
@@ -160,7 +230,7 @@ export function CarsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={EMPTY_SELECT_VALUE}>All destinations</SelectItem>
-                      {renderSelectItems(countryItems)}
+                      {renderSelectItems(filterOptions.countries)}
                     </SelectContent>
                   </Select>
                 </Label>
@@ -176,7 +246,7 @@ export function CarsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={EMPTY_SELECT_VALUE}>All cities</SelectItem>
-                      {renderSelectItems(cityItems)}
+                      {renderSelectItems(filterOptions.cities)}
                     </SelectContent>
                   </Select>
                 </Label>
@@ -192,7 +262,7 @@ export function CarsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={EMPTY_SELECT_VALUE}>All categories</SelectItem>
-                      {renderSelectItems(categoryItems)}
+                      {renderSelectItems(filterOptions.categories)}
                     </SelectContent>
                   </Select>
                 </Label>
@@ -208,7 +278,7 @@ export function CarsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={EMPTY_SELECT_VALUE}>All transmissions</SelectItem>
-                      {renderSelectItems(transmissionItems)}
+                      {renderSelectItems(filterOptions.transmissions)}
                     </SelectContent>
                   </Select>
                 </Label>
@@ -224,7 +294,7 @@ export function CarsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={EMPTY_SELECT_VALUE}>Any size</SelectItem>
-                      {renderSelectItems(seatItems)}
+                      {renderSelectItems(filterOptions.seats)}
                     </SelectContent>
                   </Select>
                 </Label>
@@ -263,18 +333,17 @@ export function CarsPage() {
                 Results
               </Badge>
               <h2 className="my-2 font-(--font-heading) text-[clamp(1.7rem,3vw,2.4rem)] tracking-tighter">
-                {filteredCars.length} cars available
+                {isLoading ? 'Loading cars...' : `${cars.length} cars available`}
               </h2>
               <p className="m-0 text-stone-500">
-                Showing mock inventory filtered by destination, travel details, and
-                availability windows.
+                Showing inventory loaded from the backend database.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <div className="grid min-w-[120px] gap-1 rounded-[18px] border border-black/10 bg-white/70 px-4 py-3.5">
-                <strong>{mockCars.length}</strong>
-                <span className="text-[0.86rem] text-stone-500">Total fleet samples</span>
+                <strong>{totalCars}</strong>
+                <span className="text-[0.86rem] text-stone-500">Matching cars</span>
               </div>
               <div className="grid min-w-[120px] gap-1 rounded-[18px] border border-black/10 bg-white/70 px-4 py-3.5">
                 <strong>{activeFilterCount}</strong>
@@ -288,9 +357,33 @@ export function CarsPage() {
           </CardContent>
         </Card>
 
-        {filteredCars.length > 0 ? (
+        {errorMessage ? (
+          <Card>
+            <CardContent className="grid justify-items-start gap-3">
+              <Badge>No Connection</Badge>
+              <h2 className="m-0 font-(--font-heading) text-[1.35rem]">
+                Could not load cars from the backend
+              </h2>
+              <p className="m-0 text-stone-500">{errorMessage}</p>
+              <Button onClick={() => setSearchParams(searchParams)}>Retry</Button>
+            </CardContent>
+          </Card>
+        ) : isLoading ? (
           <section className="grid gap-[18px] lg:grid-cols-2">
-            {filteredCars.map((car) => (
+            {[0, 1].map((item) => (
+              <Card key={item}>
+                <CardContent className="grid gap-4">
+                  <div className="h-36 animate-pulse rounded-3xl bg-black/5" />
+                  <div className="h-5 w-2/3 animate-pulse rounded-full bg-black/5" />
+                  <div className="h-4 w-full animate-pulse rounded-full bg-black/5" />
+                  <div className="h-4 w-1/2 animate-pulse rounded-full bg-black/5" />
+                </CardContent>
+              </Card>
+            ))}
+          </section>
+        ) : cars.length > 0 ? (
+          <section className="grid gap-[18px] lg:grid-cols-2">
+            {cars.map((car) => (
               <CarCard key={car.id} car={car} filters={filters} />
             ))}
           </section>
@@ -302,8 +395,8 @@ export function CarsPage() {
                 No cars match the current search
               </h2>
               <p className="m-0 text-stone-500">
-                Try removing date filters first. The mock listing already excludes
-                maintenance cars and overlapping blocked rental windows.
+                Try removing date filters first, or check that the backend database has
+                available cars for this destination.
               </p>
               <Button onClick={resetFilters}>Clear Filters</Button>
             </CardContent>

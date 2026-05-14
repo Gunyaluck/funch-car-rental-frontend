@@ -26,26 +26,28 @@ function buildDetailLink(carId: string, filters: CarFilters) {
 }
 
 export function CarCard({ car, filters }: CarCardProps) {
+  const locationLabel = [car.countryName ?? car.countryCode, car.city]
+    .filter(Boolean)
+    .join(' · ')
+  const features =
+    car.features && car.features.length > 0
+      ? car.features
+      : [car.timezone, `${car.currencyCode} pricing`]
+
   return (
     <Card className="overflow-hidden">
-      <div
-        className="relative min-h-[188px] p-[18px]"
-        style={{
-          background:
-            'radial-gradient(circle at 80% 10%, rgba(165, 84, 44, 0.18), transparent 28%), linear-gradient(135deg, rgba(35, 88, 63, 0.12), rgba(255, 255, 255, 0.4))',
-        }}
-      >
+      <div className="relative min-h-[188px] overflow-hidden p-[18px] bg-[linear-gradient(135deg,rgba(35,88,63,0.12),rgba(255,255,255,0.4))]">
+        {car.coverImage ? (
+          <img
+            src={car.coverImage}
+            alt={car.name}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : null}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(252,249,243,0.24),rgba(32,48,36,0.34))]" />
         <span className="inline-flex rounded-full bg-white/75 px-3 py-2 text-[0.84rem] font-bold">
-          {car.countryName} · {car.city}
+          {locationLabel}
         </span>
-        <div
-          className="absolute right-[22px] bottom-[18px] left-[22px] h-[90px] rounded-[28px_28px_18px_18px]"
-          aria-hidden="true"
-          style={{
-            background:
-              'linear-gradient(180deg, rgba(32, 48, 36, 0.18), rgba(32, 48, 36, 0.42)), linear-gradient(90deg, rgba(255, 255, 255, 0.18), transparent)',
-          }}
-        />
       </div>
 
       <CardContent className="grid gap-[18px]">
@@ -56,10 +58,12 @@ export function CarCard({ car, filters }: CarCardProps) {
               {car.brand} {car.model} · {car.year}
             </p>
           </div>
-          <Badge>Available</Badge>
+          <Badge>{car.isAvailable === false ? 'Unavailable' : 'Available'}</Badge>
         </div>
 
-        <p className="m-0 text-stone-500">{car.highlight}</p>
+        <p className="m-0 text-stone-500">
+          {car.highlight ?? `${car.category.toLowerCase()} rental in ${car.city}.`}
+        </p>
 
         <div className="flex flex-wrap gap-2">
           <Badge variant="chip">
@@ -77,7 +81,7 @@ export function CarCard({ car, filters }: CarCardProps) {
         </div>
 
         <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
-          {car.features.map((feature) => (
+          {features.map((feature) => (
             <li key={feature} className="text-[0.92rem] text-forest-900">
               <span className="text-clay-600">• </span>
               {feature}
