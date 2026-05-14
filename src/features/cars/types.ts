@@ -37,6 +37,41 @@ export type CarListItem = {
   }>
 }
 
+export type CarDetailImage = {
+  id: string
+  url: string
+  sortOrder: number
+  isCover: boolean
+}
+
+export type CarOption = {
+  id: string
+  name: string
+  pricePerDay: number
+  description: string | null
+}
+
+export type LocationHour = {
+  dayOfWeek: number
+  openTime: string
+  closeTime: string
+  isClosed: boolean
+}
+
+export type CarDetailItem = Omit<
+  CarListItem,
+  'coverImage' | 'isAvailable' | 'highlight' | 'features' | 'unavailableDates'
+> & {
+  description: string | null
+  is24Hours: boolean
+  minAdvanceBookingHr: number
+  maxBookingDays: number
+  bufferHours: number
+  images: CarDetailImage[]
+  options: CarOption[]
+  locationHours: LocationHour[]
+}
+
 export type CarFilters = {
   countryCode: string
   city: string
