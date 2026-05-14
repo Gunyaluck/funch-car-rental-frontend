@@ -8,14 +8,26 @@ import { FieldLabel, Label } from '../../components/ui/label'
 import { cn } from '../../lib/utils'
 import type { CarDetailItem } from './types'
 import { formatMoney } from './utils/car-detail-utils'
+import type { PricingQuote } from '../pricing/types'
+
+function formatDateTime(value: Date) {
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(value)
+}
 
 type BookingQuotePanelProps = {
   car: CarDetailItem
   pickupAt: string
   returnAt: string
-  rentalDays: number
-  optionsTotal: number
-  estimatedTotal: number
+  quote: PricingQuote | null
+  isQuoteLoading: boolean
+  quoteErrorMessage: string
   checkoutLink: string | { pathname: string; search?: string }
   isBookable: boolean
   onDateChange: (name: 'pickupAt' | 'returnAt', value: string) => void
@@ -25,32 +37,64 @@ export function BookingQuotePanel({
   car,
   pickupAt,
   returnAt,
-  rentalDays,
-  optionsTotal,
-  estimatedTotal,
+  quote,
+  isQuoteLoading,
+  quoteErrorMessage,
   checkoutLink,
   isBookable,
   onDateChange,
 }: BookingQuotePanelProps) {
+  const minimumPickupAt = new Date(Date.now() + car.minAdvanceBookingHr * 60 * 60 * 1000)
+  const canContinue = isBookable && Boolean(quote) && !isQuoteLoading && !quoteErrorMessage
+  const dateHelpMessage = !isBookable
+    ? 'This vehicle is not available for booking right now.'
+    : !pickupAt && !returnAt
+      ? 'Select pickup and return dates to calculate a backend quote.'
+      : pickupAt && !returnAt
+        ? 'Select a return date to calculate the quote.'
+        : !pickupAt && returnAt
+          ? 'Select a pickup date to calculate the quote.'
+          : 'Quote is not available yet. Adjust the pickup or return time and try again.'
+  const statusLabel = !isBookable
+    ? 'Not bookable'
+    : quoteErrorMessage
+      ? 'Quote blocked'
+      : quote
+        ? 'Quote ready'
+        : 'Select dates'
+
   return (
     <aside className="grid gap-4 self-start lg:sticky lg:top-28">
       <Card>
         <CardContent className="grid gap-5">
           <div>
-            <Badge variant={isBookable ? 'default' : 'muted'}>
-              {isBookable ? 'Ready to book' : 'Not bookable'}
+            <Badge variant={isBookable && !quoteErrorMessage ? 'default' : 'muted'}>
+              {statusLabel}
             </Badge>
             <div className="mt-3">
               <p className="m-0 font-(--font-heading) text-[2.1rem] leading-none">
-                {formatMoney(car.currencyCode, car.dailyRate)}
-                <span className="ml-1 text-base text-stone-500">/day</span>
+                {quote
+                  ? formatMoney(quote.currencyCode, quote.grandTotal)
+                  : formatMoney(car.currencyCode, car.dailyRate)}
+                <span className="ml-1 text-base text-stone-500">
+                  {quote ? 'total' : '/day'}
+                </span>
               </p>
               <p className="m-0 text-stone-500">
-                {formatMoney(car.currencyCode, car.hourlyRate)} /hr
+                {quote
+                  ? `${quote.pricingMode.toLowerCase()} pricing`
+                  : `${formatMoney(car.currencyCode, car.hourlyRate)} /hr`}
               </p>
             </div>
           </div>
 
+          {!isBookable ? (
+            <div className="rounded-3xl border border-clay-600/20 bg-clay-600/10 p-4 text-sm text-forest-900">
+              This car cannot be booked right now because its status is {car.status.toLowerCase()}.
+            </div>
+          ) : null}
+
+          {isBookable ? (
           <div className="grid gap-3">
             <Label>
               <FieldLabel>Pickup</FieldLabel>
@@ -58,7 +102,14 @@ export function BookingQuotePanel({
                 value={pickupAt}
                 onChange={(value) => onDateChange('pickupAt', value)}
                 placeholder="Pick pickup date"
+                minDateTime={minimumPickupAt}
+                minuteStep={30}
+                is24Hours={car.is24Hours}
+                operatingHours={car.locationHours}
               />
+              <span className="text-[0.82rem] text-stone-500">
+                Earliest pickup: {formatDateTime(minimumPickupAt)}
+              </span>
             </Label>
             <Label>
               <FieldLabel>Return</FieldLabel>
@@ -66,32 +117,88 @@ export function BookingQuotePanel({
                 value={returnAt}
                 onChange={(value) => onDateChange('returnAt', value)}
                 placeholder="Pick return date"
+                minDateTime={pickupAt ? new Date(pickupAt) : minimumPickupAt}
+                minDateTimeExclusive={Boolean(pickupAt)}
+                minuteStep={30}
+                is24Hours={car.is24Hours}
+                operatingHours={car.locationHours}
               />
             </Label>
           </div>
+          ) : null}
 
+          {isBookable ? (
           <div className="grid gap-2 rounded-3xl border border-black/10 bg-white/60 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-stone-500">Rental days</span>
-              <strong>{rentalDays}</strong>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-stone-500">Options</span>
-              <strong>{formatMoney(car.currencyCode, optionsTotal)}</strong>
-            </div>
-            <div className="flex items-center justify-between gap-3 border-t border-black/10 pt-3">
-              <span className="font-semibold">Estimated total</span>
-              <strong>{formatMoney(car.currencyCode, estimatedTotal)}</strong>
-            </div>
+            {isQuoteLoading ? (
+              <div className="grid gap-2">
+                <div className="h-4 w-3/4 animate-pulse rounded-full bg-black/5" />
+                <div className="h-4 w-1/2 animate-pulse rounded-full bg-black/5" />
+                <div className="h-5 w-2/3 animate-pulse rounded-full bg-black/5" />
+              </div>
+            ) : quote ? (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-stone-500">Rental</span>
+                  <strong>{formatMoney(quote.currencyCode, quote.subtotal)}</strong>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-stone-500">Options</span>
+                  <strong>{formatMoney(quote.currencyCode, quote.optionsTotal)}</strong>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-sm text-stone-500">
+                  <span>Duration</span>
+                  <span>
+                    {quote.totalDays > 0 ? `${quote.totalDays}d` : ''}
+                    {quote.totalHours > 0 ? ` ${quote.totalHours}h` : ''}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t border-black/10 pt-3">
+                  <span className="font-semibold">Grand total</span>
+                  <strong>{formatMoney(quote.currencyCode, quote.grandTotal)}</strong>
+                </div>
+              </>
+            ) : (
+              <p className="m-0 text-stone-500">
+                {dateHelpMessage}
+              </p>
+            )}
           </div>
+          ) : null}
 
-          <Link
-            to={checkoutLink}
-            className={cn(buttonVariants(), !isBookable && 'pointer-events-none opacity-55')}
-          >
-            Continue to Checkout
-            <ArrowRight className="size-4" />
-          </Link>
+          {isBookable && quoteErrorMessage ? (
+            <div className="rounded-3xl border border-clay-600/20 bg-clay-600/10 p-4 text-sm text-forest-900">
+              {quoteErrorMessage}
+            </div>
+          ) : null}
+
+          {isBookable && quote?.breakdown.length ? (
+            <div className="grid gap-2">
+              <span className="text-[0.86rem] font-semibold text-stone-500">
+                Price breakdown
+              </span>
+              {quote.breakdown.map((item) => (
+                <div
+                  key={`${item.label}-${item.type}-${item.quantity}`}
+                  className="flex items-center justify-between gap-3 rounded-2xl bg-white/58 px-4 py-3 text-sm"
+                >
+                  <span>
+                    {item.label} · {item.quantity} {item.type.toLowerCase()}
+                  </span>
+                  <strong>{formatMoney(quote.currencyCode, item.total)}</strong>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {isBookable ? (
+            <Link
+              to={checkoutLink}
+              className={cn(buttonVariants(), !canContinue && 'pointer-events-none opacity-55')}
+            >
+              Continue to Checkout
+              <ArrowRight className="size-4" />
+            </Link>
+          ) : null}
         </CardContent>
       </Card>
     </aside>

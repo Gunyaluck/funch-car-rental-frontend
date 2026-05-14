@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { PageSection } from '../components/PageSection'
 import { Badge } from '../components/ui/badge'
@@ -14,7 +14,9 @@ import { CarOptionsPanel } from '../features/cars/CarOptionsPanel'
 import { CarSpecsGrid } from '../features/cars/CarSpecsGrid'
 import { LocationHoursPanel } from '../features/cars/LocationHoursPanel'
 import type { CarDetailItem } from '../features/cars/types'
-import { buildCheckoutLink, estimateRentalDays } from '../features/cars/utils/car-detail-utils'
+import { buildCheckoutLink } from '../features/cars/utils/car-detail-utils'
+import { getApiErrorMessage, quotePricing } from '../features/pricing/api'
+import type { PricingQuote } from '../features/pricing/types'
 
 export function CarDetailPage() {
   const { carId } = useParams()
@@ -23,6 +25,9 @@ export function CarDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([])
+  const [quote, setQuote] = useState<PricingQuote | null>(null)
+  const [isQuoteLoading, setIsQuoteLoading] = useState(false)
+  const [quoteErrorMessage, setQuoteErrorMessage] = useState('')
 
   const pickupAt = searchParams.get('pickupAt') ?? ''
   const returnAt = searchParams.get('returnAt') ?? ''
@@ -69,26 +74,62 @@ export function CarDetailPage() {
     }
   }, [carId])
 
-  const selectedOptions = useMemo(
-    () => car?.options.filter((option) => selectedOptionIds.includes(option.id)) ?? [],
-    [car?.options, selectedOptionIds],
-  )
-  const rentalDays = estimateRentalDays(pickupAt, returnAt)
-  const optionsTotal = selectedOptions.reduce(
-    (total, option) => total + option.pricePerDay * rentalDays,
-    0,
-  )
-  const estimatedTotal = car ? car.dailyRate * rentalDays + optionsTotal : 0
   const coverImage = car?.images.find((image) => image.isCover)?.url ?? car?.images[0]?.url
   const checkoutLink =
-    car && carId
+    quote && carId
       ? buildCheckoutLink({
+          carId,
+          pickupAt: quote.pickupAt,
+          returnAt: quote.returnAt,
+          optionIds: selectedOptionIds,
+        })
+      : '/checkout'
+
+  useEffect(() => {
+    let isCurrent = true
+
+    async function fetchQuote() {
+      if (!carId || !car || car.status !== 'AVAILABLE' || !pickupAt || !returnAt) {
+        setQuote(null)
+        setQuoteErrorMessage('')
+        setIsQuoteLoading(false)
+        return
+      }
+
+      setIsQuoteLoading(true)
+      setQuoteErrorMessage('')
+
+      try {
+        const result = await quotePricing({
           carId,
           pickupAt,
           returnAt,
           optionIds: selectedOptionIds,
         })
-      : '/checkout'
+
+        if (isCurrent) {
+          setQuote(result)
+        }
+      } catch (error) {
+        if (isCurrent) {
+          setQuote(null)
+          setQuoteErrorMessage(
+            getApiErrorMessage(error, 'Unable to calculate this booking quote.'),
+          )
+        }
+      } finally {
+        if (isCurrent) {
+          setIsQuoteLoading(false)
+        }
+      }
+    }
+
+    fetchQuote()
+
+    return () => {
+      isCurrent = false
+    }
+  }, [car, carId, pickupAt, returnAt, selectedOptionIds])
 
   function updateSearchDate(name: 'pickupAt' | 'returnAt', value: string) {
     const nextParams = new URLSearchParams(searchParams)
@@ -172,9 +213,9 @@ export function CarDetailPage() {
             car={car}
             pickupAt={pickupAt}
             returnAt={returnAt}
-            rentalDays={rentalDays}
-            optionsTotal={optionsTotal}
-            estimatedTotal={estimatedTotal}
+            quote={quote}
+            isQuoteLoading={isQuoteLoading}
+            quoteErrorMessage={quoteErrorMessage}
             checkoutLink={checkoutLink}
             isBookable={car.status === 'AVAILABLE'}
             onDateChange={updateSearchDate}

@@ -2,6 +2,7 @@ import { Link, createSearchParams } from 'react-router-dom'
 import { Badge } from '../../components/ui/badge'
 import { buttonVariants } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
+import { getCountryName } from './country-names'
 import type { CarFilters, CarListItem } from './types'
 
 type CarCardProps = {
@@ -26,7 +27,7 @@ function buildDetailLink(carId: string, filters: CarFilters) {
 }
 
 export function CarCard({ car, filters }: CarCardProps) {
-  const locationLabel = [car.countryName ?? car.countryCode, car.city]
+  const locationLabel = [car.countryName ?? getCountryName(car.countryCode), car.city]
     .filter(Boolean)
     .join(' · ')
   const features =

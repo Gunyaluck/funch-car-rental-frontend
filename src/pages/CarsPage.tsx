@@ -16,6 +16,7 @@ export function CarsPage() {
   const [totalCars, setTotalCars] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [filterErrorMessage, setFilterErrorMessage] = useState('')
 
   const filters = useMemo(
     () => filtersFromSearchParams(searchParams),
@@ -85,13 +86,37 @@ export function CarsPage() {
   }, [allCars.length, filters])
 
   function updateDraftFilter(name: keyof CarFilters, value: string) {
+    setFilterErrorMessage('')
     setDraftFilters((currentFilters) => ({
       ...currentFilters,
       [name]: value === EMPTY_SELECT_VALUE ? '' : value,
+      ...(name === 'pickupAt' &&
+      currentFilters.returnAt &&
+      value &&
+      new Date(currentFilters.returnAt) <= new Date(value)
+        ? { returnAt: '' }
+        : {}),
     }))
   }
 
   function applyFilters() {
+    if (
+      (draftFilters.pickupAt && !draftFilters.returnAt) ||
+      (!draftFilters.pickupAt && draftFilters.returnAt)
+    ) {
+      setFilterErrorMessage('Pickup and return must be selected together.')
+      return
+    }
+
+    if (
+      draftFilters.pickupAt &&
+      draftFilters.returnAt &&
+      new Date(draftFilters.pickupAt) >= new Date(draftFilters.returnAt)
+    ) {
+      setFilterErrorMessage('Return must be later than pickup.')
+      return
+    }
+
     const nextParams = new URLSearchParams()
 
     Object.entries(draftFilters).forEach(([name, value]) => {
@@ -104,6 +129,7 @@ export function CarsPage() {
   }
 
   function resetFilters() {
+    setFilterErrorMessage('')
     setDraftFilters(defaultCarFilters)
     setSearchParams({})
   }
@@ -125,6 +151,7 @@ export function CarsPage() {
           filterOptions={filterOptions}
           pendingFilterCount={pendingFilterCount}
           hasPendingChanges={hasPendingChanges}
+          errorMessage={filterErrorMessage}
           onChange={updateDraftFilter}
           onReset={resetFilters}
           onSubmit={handleFilterSubmit}

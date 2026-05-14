@@ -30,6 +30,7 @@ type CarsFilterPanelProps = {
   }
   pendingFilterCount: number
   hasPendingChanges: boolean
+  errorMessage: string
   onChange: (name: keyof CarFilters, value: string) => void
   onReset: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
@@ -48,10 +49,13 @@ export function CarsFilterPanel({
   filterOptions,
   pendingFilterCount,
   hasPendingChanges,
+  errorMessage,
   onChange,
   onReset,
   onSubmit,
 }: CarsFilterPanelProps) {
+  const minimumPickupAt = new Date()
+
   return (
     <Card>
       <CardContent>
@@ -165,6 +169,8 @@ export function CarsFilterPanel({
                 value={draftFilters.pickupAt}
                 onChange={(value) => onChange('pickupAt', value)}
                 placeholder="Pick pickup date"
+                minDateTime={minimumPickupAt}
+                minuteStep={30}
               />
             </Label>
 
@@ -174,6 +180,9 @@ export function CarsFilterPanel({
                 value={draftFilters.returnAt}
                 onChange={(value) => onChange('returnAt', value)}
                 placeholder="Pick return date"
+                minDateTime={draftFilters.pickupAt ? new Date(draftFilters.pickupAt) : minimumPickupAt}
+                minDateTimeExclusive={Boolean(draftFilters.pickupAt)}
+                minuteStep={30}
               />
             </Label>
           </div>
@@ -182,6 +191,12 @@ export function CarsFilterPanel({
             <span>{pendingFilterCount} filters selected</span>
             {hasPendingChanges ? <Badge variant="muted">Search not applied</Badge> : null}
           </div>
+
+          {errorMessage ? (
+            <div className="mt-3 rounded-3xl border border-clay-600/20 bg-clay-600/10 px-4 py-3 text-sm text-forest-900">
+              {errorMessage}
+            </div>
+          ) : null}
         </form>
       </CardContent>
     </Card>
