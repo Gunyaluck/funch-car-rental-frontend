@@ -1,5 +1,5 @@
 import { api } from '../../api/axios'
-import type { CarFilters, CarListItem } from './types'
+import type { CarDetailItem, CarFilters, CarListItem } from './types'
 
 type ApiResponse<T> = {
   data: T
@@ -46,4 +46,9 @@ export async function listCars(filters: CarFilters, limit = 100): Promise<ListCa
       total: response.data.meta?.total ?? response.data.data.length,
     },
   }
+}
+
+export async function getCarById(carId: string): Promise<CarDetailItem> {
+  const response = await api.get<ApiResponse<CarDetailItem>>(`/cars/${carId}`)
+  return response.data.data
 }
