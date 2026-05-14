@@ -11,7 +11,7 @@ export function CarDetailPage() {
       title="Vehicle detail route scaffold"
       description={`This route is reserved for car "${carId ?? ':carId'}" and should consume GET /cars/:id, quote data, options, and availability rules.`}
     >
-      <div className="placeholder-grid">
+      <div className="grid grid-cols-12 gap-4">
         <PlaceholderPanel
           label="Gallery"
           title="Hero media and specification summary"

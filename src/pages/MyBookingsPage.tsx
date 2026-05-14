@@ -8,7 +8,7 @@ export function MyBookingsPage() {
       title="My bookings route scaffold"
       description="This page should show booking history, statuses, dates, car info, and next-step actions for the customer."
     >
-      <div className="placeholder-grid">
+      <div className="grid grid-cols-12 gap-4">
         <PlaceholderPanel
           label="History"
           title="Booking list"

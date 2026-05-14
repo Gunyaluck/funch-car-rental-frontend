@@ -2,7 +2,7 @@ import { PlaceholderPanel } from '../../components/PlaceholderPanel'
 
 export function AdminDashboardPage() {
   return (
-    <div className="placeholder-grid">
+    <div className="grid grid-cols-12 gap-4">
       <PlaceholderPanel
         label="Queue"
         title="Pending approvals"
