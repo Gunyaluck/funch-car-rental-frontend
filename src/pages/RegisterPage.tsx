@@ -8,7 +8,7 @@ export function RegisterPage() {
       title="Customer registration route scaffold"
       description="Use this route for account creation when the customer books and signs up in the same flow."
     >
-      <div className="placeholder-grid">
+      <div className="grid grid-cols-12 gap-4">
         <PlaceholderPanel
           label="Profile"
           title="Registration form"

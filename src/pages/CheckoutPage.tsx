@@ -8,7 +8,7 @@ export function CheckoutPage() {
       title="Booking checkout route scaffold"
       description="This route should consolidate quote summary, selected options, customer details, and booking creation."
     >
-      <div className="placeholder-grid">
+      <div className="grid grid-cols-12 gap-4">
         <PlaceholderPanel
           label="Quote"
           title="Booking summary"

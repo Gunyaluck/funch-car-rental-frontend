@@ -2,7 +2,7 @@ import { PlaceholderPanel } from '../../components/PlaceholderPanel'
 
 export function AdminMembersPage() {
   return (
-    <div className="placeholder-grid">
+    <div className="grid grid-cols-12 gap-4">
       <PlaceholderPanel
         label="Members"
         title="Customer directory"

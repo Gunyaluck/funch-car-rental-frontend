@@ -8,7 +8,7 @@ export function LoginPage() {
       title="Customer sign-in route scaffold"
       description="Use this route for login form, session restoration, and booking continuation after authentication."
     >
-      <div className="placeholder-grid">
+      <div className="grid grid-cols-12 gap-4">
         <PlaceholderPanel
           label="Form"
           title="Login form"
