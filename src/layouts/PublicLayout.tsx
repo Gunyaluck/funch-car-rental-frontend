@@ -1,6 +1,10 @@
 import { CarFront, UserRound } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { Button } from '../components/ui/button'
 import { buttonVariants } from '../components/ui/button'
+import { clearAuthSession, getStoredAuthSession, subscribeToAuthSessionChange } from '../features/auth/storage'
+import type { AuthSession } from '../features/auth/types'
 import { cn } from '../lib/utils'
 
 const publicLinks = [
@@ -19,6 +23,18 @@ function getNavClassName({ isActive }: { isActive: boolean }) {
 }
 
 export function PublicLayout() {
+  const [session, setSession] = useState<AuthSession | null>(() => getStoredAuthSession())
+
+  useEffect(() => {
+    return subscribeToAuthSessionChange(() => setSession(getStoredAuthSession()))
+  }, [])
+
+  function handleSignOut() {
+    clearAuthSession()
+  }
+
+  const userName = session?.user.firstName ?? session?.user.email
+
   return (
     <div className="min-h-screen text-forest-900">
       <header className="sticky top-4 z-20 px-4">
@@ -46,21 +62,36 @@ export function PublicLayout() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
-            <NavLink
-              to="/login"
-              className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'max-md:hidden')}
-              aria-label="Sign in"
-            >
-              <UserRound className="size-4" />
-            </NavLink>
-            <NavLink
-              to="/register"
-              className={cn(buttonVariants(), 'max-sm:hidden')}
-            >
-              Create Account
-            </NavLink>
-          </div>
+          {session ? (
+            <div className="flex items-center gap-2">
+              <NavLink
+                to="/my-bookings"
+                className={cn(buttonVariants({ variant: 'ghost' }), 'max-sm:hidden')}
+              >
+                <UserRound className="size-4" />
+                {userName}
+              </NavLink>
+              <Button variant="outline" onClick={handleSignOut}>
+                Sign out
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <NavLink
+                to="/login"
+                className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'max-md:hidden')}
+                aria-label="Sign in"
+              >
+                <UserRound className="size-4" />
+              </NavLink>
+              <NavLink
+                to="/register"
+                className={cn(buttonVariants(), 'max-sm:hidden')}
+              >
+                Create Account
+              </NavLink>
+            </div>
+          )}
         </div>
       </header>
 
