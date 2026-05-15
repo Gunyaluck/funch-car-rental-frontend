@@ -2,6 +2,7 @@ import { Alert } from '../../components/ui/alert'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
+import { LoadingSpring } from '../../components/ui/loading-spring'
 import { CarCard } from './CarCard'
 import type { CarFilters, CarListItem } from './types'
 
@@ -44,11 +45,8 @@ export function CarsResultsState({
       <section className="grid gap-[18px] lg:grid-cols-2">
         {[0, 1].map((item) => (
           <Card key={item}>
-            <CardContent className="grid gap-4">
-              <div className="h-36 animate-pulse rounded-3xl bg-black/5" />
-              <div className="h-5 w-2/3 animate-pulse rounded-full bg-black/5" />
-              <div className="h-4 w-full animate-pulse rounded-full bg-black/5" />
-              <div className="h-4 w-1/2 animate-pulse rounded-full bg-black/5" />
+            <CardContent className="grid min-h-[250px] place-items-center">
+              <LoadingSpring label="Loading cars" />
             </CardContent>
           </Card>
         ))}

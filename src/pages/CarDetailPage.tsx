@@ -6,6 +6,7 @@ import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { buttonVariants } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
+import { LoadingSpring } from '../components/ui/loading-spring'
 import { cn } from '../lib/utils'
 import { getCarById } from '../features/cars/api'
 import { BookingQuotePanel } from '../features/cars/BookingQuotePanel'
@@ -165,8 +166,12 @@ export function CarDetailPage() {
         description="Preparing the selected vehicle details."
       >
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
-          <div className="h-[430px] animate-pulse rounded-[32px] bg-black/5" />
-          <div className="h-[430px] animate-pulse rounded-[32px] bg-black/5" />
+          <div className="grid h-[430px] place-items-center rounded-[32px] bg-black/5">
+            <LoadingSpring label="Loading vehicle" />
+          </div>
+          <div className="grid h-[430px] place-items-center rounded-[32px] bg-black/5">
+            <LoadingSpring label="Preparing quote" />
+          </div>
         </div>
       </PageSection>
     )

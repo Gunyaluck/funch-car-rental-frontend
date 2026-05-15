@@ -6,6 +6,7 @@ import { buttonVariants } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
 import { DateTimePicker } from '../../components/ui/date-time-picker'
 import { FieldLabel, Label } from '../../components/ui/label'
+import { LoadingSpring } from '../../components/ui/loading-spring'
 import { cn } from '../../lib/utils'
 import type { CarDetailItem } from './types'
 import { formatMoney, getApproximateLocalMoney } from './utils/car-detail-utils'
@@ -146,10 +147,8 @@ export function BookingQuotePanel({
           {isBookable ? (
           <div className="grid gap-2 rounded-3xl border border-black/10 bg-white/60 p-4">
             {isQuoteLoading ? (
-              <div className="grid gap-2">
-                <div className="h-4 w-3/4 animate-pulse rounded-full bg-black/5" />
-                <div className="h-4 w-1/2 animate-pulse rounded-full bg-black/5" />
-                <div className="h-5 w-2/3 animate-pulse rounded-full bg-black/5" />
+              <div className="grid min-h-24 place-items-center">
+                <LoadingSpring label="Calculating price" />
               </div>
             ) : quote ? (
               <>
