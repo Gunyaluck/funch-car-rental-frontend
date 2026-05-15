@@ -10,20 +10,18 @@ import { FieldLabel, Label } from '../components/ui/label'
 import { register } from '../features/auth/api'
 import { storeAuthSession } from '../features/auth/storage'
 
-const countryCurrencyDefaults: Record<string, string> = {
-  TH: 'THB',
-  JP: 'JPY',
-  US: 'USD',
-  SG: 'SGD',
-  MY: 'MYR',
+const countryDefaults: Record<string, { timezone: string; currency: string }> = {
+  TH: { timezone: 'Asia/Bangkok', currency: 'THB' },
+  JP: { timezone: 'Asia/Tokyo', currency: 'JPY' },
+  SG: { timezone: 'Asia/Singapore', currency: 'SGD' },
+  MY: { timezone: 'Asia/Kuala_Lumpur', currency: 'MYR' },
+  US: { timezone: 'America/New_York', currency: 'USD' },
+  GB: { timezone: 'Europe/London', currency: 'GBP' },
+  AU: { timezone: 'Australia/Sydney', currency: 'AUD' },
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
-}
-
-function getLocalTimezone() {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Bangkok'
 }
 
 export function RegisterPage() {
@@ -35,23 +33,21 @@ export function RegisterPage() {
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [countryCode, setCountryCode] = useState('TH')
-  const [timezone, setTimezone] = useState(getLocalTimezone)
-  const [preferredCurrency, setPreferredCurrency] = useState('THB')
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const redirectTo = searchParams.get('redirect') || '/cars'
+  const countryProfile = countryDefaults[countryCode] ?? countryDefaults.TH
 
   function updateCountryCode(value: string) {
     const nextCountryCode = value.toUpperCase()
     setCountryCode(nextCountryCode)
-    setPreferredCurrency(countryCurrencyDefaults[nextCountryCode] ?? preferredCurrency)
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setErrorMessage('')
 
-    if (!firstName || !lastName || !email || !password || !countryCode || !timezone) {
+    if (!firstName || !lastName || !email || !password || !countryCode) {
       setErrorMessage('Complete the required account details.')
       return
     }
@@ -71,8 +67,8 @@ export function RegisterPage() {
         password,
         phone,
         countryCode,
-        timezone,
-        preferredCurrency,
+        timezone: countryProfile.timezone,
+        preferredCurrency: countryProfile.currency,
       })
       storeAuthSession(session)
       navigate(redirectTo, { replace: true })
@@ -85,11 +81,12 @@ export function RegisterPage() {
 
   return (
     <PageSection
-      eyebrow="Auth"
       title="Create account"
       description="Save your profile for faster bookings and local price estimates."
+      align="center"
+      variant="plain"
     >
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.72fr)_minmax(280px,0.28fr)]">
+      <div className="mx-auto grid w-full max-w-[680px] gap-4">
         <Card>
           <CardContent>
             <form className="grid gap-4" onSubmit={handleSubmit}>
@@ -136,7 +133,7 @@ export function RegisterPage() {
                   />
                 </Label>
                 <Label>
-                  <FieldLabel>Country code</FieldLabel>
+                  <FieldLabel>Country</FieldLabel>
                   <Input
                     maxLength={2}
                     value={countryCode}
@@ -144,43 +141,27 @@ export function RegisterPage() {
                   />
                 </Label>
               </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Label>
-                  <FieldLabel>Timezone</FieldLabel>
-                  <Input value={timezone} onChange={(event) => setTimezone(event.target.value)} />
-                </Label>
-                <Label>
-                  <FieldLabel>Preferred currency</FieldLabel>
-                  <Input
-                    maxLength={3}
-                    value={preferredCurrency}
-                    onChange={(event) => setPreferredCurrency(event.target.value.toUpperCase())}
-                  />
-                </Label>
-              </div>
-
               {errorMessage ? <Alert title="Account could not be created">{errorMessage}</Alert> : null}
 
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Creating account...' : 'Create account'}
-                <ArrowRight className="size-4" />
-              </Button>
+              <div className="flex justify-center">
+                <Button type="submit" className="w-fit px-6" disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating account...' : 'Create account'}
+                  <ArrowRight className="size-4" />
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="grid content-start gap-3">
-            <h2 className="m-0 font-(--font-heading) text-[1.35rem]">Already registered?</h2>
-            <p className="m-0 text-stone-500">
-              Sign in to continue with your saved booking details.
-            </p>
-            <Link to={`/login?redirect=${encodeURIComponent(redirectTo)}`} className="font-semibold text-forest-700">
-              Sign in
-            </Link>
-          </CardContent>
-        </Card>
+        <p className="m-0 text-center text-sm text-stone-500">
+          Already registered?{' '}
+          <Link
+            to={`/login?redirect=${encodeURIComponent(redirectTo)}`}
+            className="font-semibold text-forest-700"
+          >
+            Sign in
+          </Link>
+        </p>
       </div>
     </PageSection>
   )
