@@ -4,12 +4,16 @@ import { PageSection } from '../components/PageSection'
 import { listCars } from '../features/cars/api'
 import { CarsFilterPanel } from '../features/cars/CarsFilterPanel'
 import { CarsResultsState } from '../features/cars/CarsResultsState'
-import { defaultCarFilters } from '../features/cars/constants'
+import { defaultCarFilters, minimumAdvanceBookingHours } from '../features/cars/constants'
 import type { CarFilters, CarListItem } from '../features/cars/types'
 import { EMPTY_SELECT_VALUE, filtersFromSearchParams, optionsFromCars } from '../features/cars/utils/cars-filter-utils'
 
 function getStoredCustomerCountryCode() {
   return window.localStorage.getItem('customerCountryCode') ?? 'TH'
+}
+
+function getMinimumPickupTime() {
+  return Date.now() + minimumAdvanceBookingHours * 60 * 60 * 1000
 }
 
 export function CarsPage() {
@@ -31,10 +35,6 @@ export function CarsPage() {
   }, [filters])
 
   const pendingFilterCount = Object.values(draftFilters).filter(Boolean).length
-  const hasPendingChanges = useMemo(() => {
-    const filterKeys = Object.keys(defaultCarFilters) as Array<keyof CarFilters>
-    return filterKeys.some((key) => filters[key] !== draftFilters[key])
-  }, [draftFilters, filters])
   const filterOptions = useMemo(() => optionsFromCars(allCars), [allCars])
   const customerCountryCode = getStoredCustomerCountryCode()
 
@@ -110,6 +110,16 @@ export function CarsPage() {
 
     if (
       draftFilters.pickupAt &&
+      new Date(draftFilters.pickupAt).getTime() < getMinimumPickupTime()
+    ) {
+      setFilterErrorMessage(
+        `Pickup must be at least ${minimumAdvanceBookingHours} hours from now.`,
+      )
+      return
+    }
+
+    if (
+      draftFilters.pickupAt &&
       draftFilters.returnAt &&
       new Date(draftFilters.pickupAt) >= new Date(draftFilters.returnAt)
     ) {
@@ -148,7 +158,6 @@ export function CarsPage() {
           draftFilters={draftFilters}
           filterOptions={filterOptions}
           pendingFilterCount={pendingFilterCount}
-          hasPendingChanges={hasPendingChanges}
           errorMessage={filterErrorMessage}
           onChange={updateDraftFilter}
           onReset={resetFilters}

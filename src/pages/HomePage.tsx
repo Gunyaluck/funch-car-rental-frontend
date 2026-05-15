@@ -113,7 +113,7 @@ export function HomePage() {
         <div className="mx-auto grid w-[min(1200px,calc(100%-32px))] grid-cols-12 items-center gap-8 max-md:w-[min(100%,calc(100%-24px))]">
           <div className="col-span-12 grid gap-5 lg:col-span-6">
             <div className="grid gap-4">
-              <h1 className="m-0 max-w-[760px] font-(--font-body) text-[3.25rem] leading-[0.95] font-black tracking-normal md:text-[5.5rem]">
+              <h1 className="m-0 max-w-[760px] font-body text-[3.25rem] leading-[0.95] font-black tracking-normal md:text-[5.5rem]">
                 Rent the right car.
               </h1>
               <p className="m-0 max-w-[620px] text-[1.08rem] leading-7 text-stone-500">

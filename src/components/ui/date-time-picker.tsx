@@ -20,6 +20,8 @@ type DateTimePickerProps = {
   minDateTimeExclusive?: boolean
   minuteStep?: number
   is24Hours?: boolean
+  timezone?: string
+  timezoneLabel?: string
   operatingHours?: Array<{
     dayOfWeek: number
     openTime: string
@@ -98,6 +100,81 @@ function timeSlotToDate(date: Date, time: string) {
   return slotDate
 }
 
+function getLocalTimezone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
+function getTimeZoneName(timezone: string) {
+  try {
+    const parts = new Intl.DateTimeFormat('en', {
+      timeZone: timezone,
+      timeZoneName: 'short',
+    }).formatToParts(new Date())
+
+    return parts.find((part) => part.type === 'timeZoneName')?.value ?? timezone
+  } catch {
+    return timezone
+  }
+}
+
+function getZonedDateParts(date: Date, timezone: string) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date)
+
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+  }
+}
+
+function zonedWallTimeToDate(date: Date, timezone: string) {
+  try {
+    const desiredWallTime = Date.UTC(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      date.getHours(),
+      date.getMinutes(),
+    )
+    const utcGuess = new Date(desiredWallTime)
+    const zonedParts = getZonedDateParts(utcGuess, timezone)
+    const guessedWallTime = Date.UTC(
+      zonedParts.year,
+      zonedParts.month - 1,
+      zonedParts.day,
+      zonedParts.hour,
+      zonedParts.minute,
+    )
+
+    return new Date(utcGuess.getTime() + desiredWallTime - guessedWallTime)
+  } catch {
+    return date
+  }
+}
+
+function formatDateTimeLabel(date: Date) {
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(date)
+}
+
 function isOutsideOperatingHours(
   time: string,
   selectedDate: Date | undefined,
@@ -117,7 +194,7 @@ function isOutsideOperatingHours(
   const slotMinutes = minutesFromTime(time)
   return (
     slotMinutes < minutesFromTime(hours.openTime) ||
-    slotMinutes > minutesFromTime(hours.closeTime)
+    slotMinutes >= minutesFromTime(hours.closeTime)
   )
 }
 
@@ -210,6 +287,8 @@ export function DateTimePicker({
   minDateTimeExclusive = false,
   minuteStep = 30,
   is24Hours = true,
+  timezone,
+  timezoneLabel,
   operatingHours,
 }: DateTimePickerProps) {
   const [open, setOpen] = useState(false)
@@ -218,6 +297,12 @@ export function DateTimePicker({
   const displayValue = selectedDate ? format(selectedDate, 'dd/MM/yy HH:mm') : placeholder
   const minimumDate = minDateTime ? startOfDay(minDateTime) : undefined
   const timeSlots = useMemo(() => buildTimeSlots(minuteStep), [minuteStep])
+  const localTimezone = getLocalTimezone()
+  const timezoneName = timezone ? getTimeZoneName(timezone) : ''
+  const selectedLocalEquivalent =
+    selectedDate && timezone && timezone !== localTimezone
+      ? zonedWallTimeToDate(selectedDate, timezone)
+      : undefined
 
   function updateDate(nextDate: Date | undefined) {
     if (!nextDate) {
@@ -269,8 +354,14 @@ export function DateTimePicker({
     nextDate.setHours(hour, minute, 0, 0)
 
     if (
-      (minDateTime && nextDate < minDateTime) ||
-      isOutsideOperatingHours(time, nextDate, operatingHours, is24Hours)
+      isTimeSlotDisabled({
+        time,
+        selectedDate: nextDate,
+        minDateTime,
+        minDateTimeExclusive,
+        operatingHours,
+        is24Hours,
+      })
     ) {
       const firstAvailableSlot = getFirstAvailableTimeSlot({
         selectedDate: nextDate,
@@ -317,6 +408,18 @@ export function DateTimePicker({
           </Button>
         ) : null}
       </div>
+      {selectedDate && timezone ? (
+        <div className="mt-1 grid gap-0.5 text-[0.78rem] leading-5 text-stone-500">
+          <span>
+            {timezoneLabel ?? 'Location time'}: {formatDateTimeLabel(selectedDate)} {timezoneName}
+          </span>
+          {selectedLocalEquivalent ? (
+            <span>
+              Your local time: {formatDateTimeLabel(selectedLocalEquivalent)}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       <PopoverContent className="w-auto">
         <div className="grid gap-4">
@@ -355,7 +458,7 @@ export function DateTimePicker({
                       operatingHours,
                       is24Hours,
                     })}
-                    className="data-[disabled]:text-stone-500/35"
+                    className="data-[disabled]:cursor-not-allowed data-[disabled]:text-stone-500/35"
                   >
                     {time}
                   </SelectItem>

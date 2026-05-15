@@ -12,17 +12,6 @@ import type { CarDetailItem } from './types'
 import { formatMoney, getApproximateLocalMoney } from './utils/car-detail-utils'
 import type { PricingQuote } from '../pricing/types'
 
-function formatDateTime(value: Date) {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(value)
-}
-
 type BookingQuotePanelProps = {
   car: CarDetailItem
   pickupAt: string
@@ -122,10 +111,12 @@ export function BookingQuotePanel({
                 minDateTime={minimumPickupAt}
                 minuteStep={30}
                 is24Hours={car.is24Hours}
+                timezone={car.timezone}
+                timezoneLabel={`${car.city} time`}
                 operatingHours={car.locationHours}
               />
               <span className="text-[0.82rem] text-stone-500">
-                Earliest pickup: {formatDateTime(minimumPickupAt)}
+                Earliest pickup: {car.minAdvanceBookingHr} hours from now
               </span>
             </Label>
             <Label>
@@ -138,6 +129,8 @@ export function BookingQuotePanel({
                 minDateTimeExclusive={Boolean(pickupAt)}
                 minuteStep={30}
                 is24Hours={car.is24Hours}
+                timezone={car.timezone}
+                timezoneLabel={`${car.city} time`}
                 operatingHours={car.locationHours}
               />
             </Label>

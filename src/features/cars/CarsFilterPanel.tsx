@@ -1,7 +1,6 @@
 import { Search } from "lucide-react";
 import type { FormEvent } from "react";
 import { Alert } from "../../components/ui/alert";
-import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { DateTimePicker } from "../../components/ui/date-time-picker";
@@ -19,6 +18,7 @@ import {
   type SelectOption,
 } from "./utils/cars-filter-utils";
 import type { CarFilters } from "./types";
+import { minimumAdvanceBookingHours } from "./constants";
 
 type CarsFilterPanelProps = {
   draftFilters: CarFilters;
@@ -30,7 +30,6 @@ type CarsFilterPanelProps = {
     seats: SelectOption[];
   };
   pendingFilterCount: number;
-  hasPendingChanges: boolean;
   errorMessage: string;
   onChange: (name: keyof CarFilters, value: string) => void;
   onReset: () => void;
@@ -49,13 +48,14 @@ export function CarsFilterPanel({
   draftFilters,
   filterOptions,
   pendingFilterCount,
-  hasPendingChanges,
   errorMessage,
   onChange,
   onReset,
   onSubmit,
 }: CarsFilterPanelProps) {
-  const minimumPickupAt = new Date();
+  const minimumPickupAt = new Date(
+    Date.now() + minimumAdvanceBookingHours * 60 * 60 * 1000,
+  );
 
   return (
     <Card>
@@ -179,9 +179,6 @@ export function CarsFilterPanel({
           <div className="mt-4 flex flex-col justify-between gap-3 md:flex-row md:items-center">
             <div className="flex flex-wrap items-center gap-2 text-[0.9rem] text-stone-500">
               <span>{pendingFilterCount} filters selected</span>
-              {hasPendingChanges ? (
-                <Badge variant="muted">Search not applied</Badge>
-              ) : null}
             </div>
 
             <div className="flex flex-wrap gap-2 md:justify-end">
