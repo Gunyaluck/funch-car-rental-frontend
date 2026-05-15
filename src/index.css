@@ -36,10 +36,14 @@
     min-width: 320px;
     min-height: 100vh;
     background:
-      radial-gradient(circle at 12% 8%, rgba(35, 88, 63, 0.14), transparent 28rem),
-      radial-gradient(circle at 88% 10%, rgba(165, 84, 44, 0.14), transparent 24rem),
-      linear-gradient(180deg, rgba(247, 243, 235, 0.96), rgba(252, 249, 243, 0.98)),
+      linear-gradient(90deg, rgba(252, 249, 243, 0.72) 0%, rgba(252, 249, 243, 0.48) 44%, rgba(252, 249, 243, 0.22) 100%),
+      linear-gradient(180deg, rgba(252, 249, 243, 0.28), rgba(247, 243, 235, 0.15)),
+      url('./assets/hero_background.png'),
       #f7f3eb;
+    background-attachment: fixed;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-size: cover;
     color: var(--color-forest-900);
   }
 
