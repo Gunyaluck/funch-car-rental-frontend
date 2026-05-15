@@ -4,16 +4,18 @@ import { PageSection } from '../components/PageSection'
 import { listCars } from '../features/cars/api'
 import { CarsFilterPanel } from '../features/cars/CarsFilterPanel'
 import { CarsResultsState } from '../features/cars/CarsResultsState'
-import { CarsResultsSummary } from '../features/cars/CarsResultsSummary'
 import { defaultCarFilters } from '../features/cars/constants'
 import type { CarFilters, CarListItem } from '../features/cars/types'
 import { EMPTY_SELECT_VALUE, filtersFromSearchParams, optionsFromCars } from '../features/cars/utils/cars-filter-utils'
+
+function getStoredCustomerCountryCode() {
+  return window.localStorage.getItem('customerCountryCode') ?? 'TH'
+}
 
 export function CarsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [cars, setCars] = useState<CarListItem[]>([])
   const [allCars, setAllCars] = useState<CarListItem[]>([])
-  const [totalCars, setTotalCars] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [filterErrorMessage, setFilterErrorMessage] = useState('')
@@ -28,13 +30,13 @@ export function CarsPage() {
     setDraftFilters(filters)
   }, [filters])
 
-  const activeFilterCount = Object.values(filters).filter(Boolean).length
   const pendingFilterCount = Object.values(draftFilters).filter(Boolean).length
   const hasPendingChanges = useMemo(() => {
     const filterKeys = Object.keys(defaultCarFilters) as Array<keyof CarFilters>
     return filterKeys.some((key) => filters[key] !== draftFilters[key])
   }, [draftFilters, filters])
   const filterOptions = useMemo(() => optionsFromCars(allCars), [allCars])
+  const customerCountryCode = getStoredCustomerCountryCode()
 
   useEffect(() => {
     let isCurrent = true
@@ -54,7 +56,6 @@ export function CarsPage() {
         }
 
         setCars(filteredResult.data)
-        setTotalCars(filteredResult.meta.total)
 
         if (allResult) {
           setAllCars(allResult.data)
@@ -65,11 +66,10 @@ export function CarsPage() {
         }
 
         setCars([])
-        setTotalCars(0)
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : 'Unable to load cars from the backend.',
+            : 'Unable to load cars right now.',
         )
       } finally {
         if (isCurrent) {
@@ -141,9 +141,7 @@ export function CarsPage() {
 
   return (
     <PageSection
-      eyebrow="Cars"
-      title="Find cars by destination, schedule, and travel fit"
-      description="Search live vehicle inventory from the backend database and keep each search shareable through URL-synced filters."
+      title="Cars"
     >
       <div className="grid gap-6">
         <CarsFilterPanel
@@ -157,19 +155,12 @@ export function CarsPage() {
           onSubmit={handleFilterSubmit}
         />
 
-        <CarsResultsSummary
-          isLoading={isLoading}
-          visibleCount={cars.length}
-          totalCars={totalCars}
-          activeFilterCount={activeFilterCount}
-          destinationScope={filters.countryCode || 'Global'}
-        />
-
         <CarsResultsState
           cars={cars}
           filters={filters}
           isLoading={isLoading}
           errorMessage={errorMessage}
+          customerCountryCode={customerCountryCode}
           onRetry={() => setSearchParams(searchParams)}
           onReset={resetFilters}
         />

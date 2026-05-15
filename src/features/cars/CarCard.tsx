@@ -2,12 +2,15 @@ import { Link, createSearchParams } from 'react-router-dom'
 import { Badge } from '../../components/ui/badge'
 import { buttonVariants } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
+import { cn } from '../../lib/utils'
 import { getCountryName } from './country-names'
 import type { CarFilters, CarListItem } from './types'
+import { formatMoney, getApproximateLocalMoney } from './utils/car-detail-utils'
 
 type CarCardProps = {
   car: CarListItem
   filters: CarFilters
+  customerCountryCode?: string
 }
 
 function buildDetailLink(carId: string, filters: CarFilters) {
@@ -26,7 +29,8 @@ function buildDetailLink(carId: string, filters: CarFilters) {
   }
 }
 
-export function CarCard({ car, filters }: CarCardProps) {
+export function CarCard({ car, filters, customerCountryCode }: CarCardProps) {
+  const isAvailable = car.isAvailable !== false
   const locationLabel = [car.countryName ?? getCountryName(car.countryCode), car.city]
     .filter(Boolean)
     .join(' · ')
@@ -34,6 +38,16 @@ export function CarCard({ car, filters }: CarCardProps) {
     car.features && car.features.length > 0
       ? car.features
       : [car.timezone, `${car.currencyCode} pricing`]
+  const hourlyLocalEstimate = getApproximateLocalMoney(
+    car.currencyCode,
+    car.hourlyRate,
+    customerCountryCode,
+  )
+  const dailyLocalEstimate = getApproximateLocalMoney(
+    car.currencyCode,
+    car.dailyRate,
+    customerCountryCode,
+  )
 
   return (
     <Card className="overflow-hidden">
@@ -59,7 +73,23 @@ export function CarCard({ car, filters }: CarCardProps) {
               {car.brand} {car.model} · {car.year}
             </p>
           </div>
-          <Badge>{car.isAvailable === false ? 'Unavailable' : 'Available'}</Badge>
+          <Badge
+            variant={isAvailable ? 'success' : 'danger'}
+            className="gap-2 px-3 py-2"
+          >
+            <span className="relative flex size-2">
+              {isAvailable ? (
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-forest-700/35" />
+              ) : null}
+              <span
+                className={cn(
+                  'relative inline-flex size-2 rounded-full',
+                  isAvailable ? 'bg-forest-700' : 'bg-red-600',
+                )}
+              />
+            </span>
+            {isAvailable ? 'Available' : 'Unavailable'}
+          </Badge>
         </div>
 
         <p className="m-0 text-stone-500">
@@ -93,12 +123,22 @@ export function CarCard({ car, filters }: CarCardProps) {
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="m-0 font-(--font-heading) text-[1.6rem] leading-none">
-              {car.currencyCode} {car.hourlyRate.toLocaleString()}
+              {formatMoney(car.currencyCode, car.hourlyRate)}
               <span className="ml-1 text-base text-stone-500">/hr</span>
             </p>
+            {hourlyLocalEstimate ? (
+              <p className="m-0 text-sm text-stone-500">
+                Approx. {hourlyLocalEstimate.formattedValue} /hr
+              </p>
+            ) : null}
             <p className="m-0 text-stone-500">
-              {car.currencyCode} {car.dailyRate.toLocaleString()} /day
+              {formatMoney(car.currencyCode, car.dailyRate)} /day
             </p>
+            {dailyLocalEstimate ? (
+              <p className="m-0 text-sm text-stone-500">
+                Approx. {dailyLocalEstimate.formattedValue} /day
+              </p>
+            ) : null}
           </div>
 
           <Link

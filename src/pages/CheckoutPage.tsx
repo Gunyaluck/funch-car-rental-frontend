@@ -4,34 +4,33 @@ import { PlaceholderPanel } from '../components/PlaceholderPanel'
 export function CheckoutPage() {
   return (
     <PageSection
-      eyebrow="Checkout"
-      title="Booking checkout route scaffold"
-      description="This route should consolidate quote summary, selected options, customer details, and booking creation."
+      title="Complete your booking"
+      description="Review your trip details, options, customer information, and final price."
     >
       <div className="grid grid-cols-12 gap-4">
         <PlaceholderPanel
           label="Quote"
           title="Booking summary"
-          description="Render selected car, pickup-return date, pricing breakdown, timezone, and rental rules."
+          description="Check the selected car, pickup and return time, price breakdown, and rental rules."
         />
 
         <PlaceholderPanel
           label="Customer"
-          title="Auth-aware contact panel"
-          description="If the user is logged in, preload their profile. If not, redirect them through login or register and return here."
+          title="Contact details"
+          description="Use your saved profile or add the contact details needed for this booking."
         />
 
         <PlaceholderPanel
           label="Submit"
           title="Create booking"
-          description="POST /bookings should create a pending booking and preserve backend pricing snapshot as source of truth."
+          description="Submit your booking request for review and confirmation."
         />
 
         <PlaceholderPanel
           wide
-          label="Admin Dependency"
+          label="Approval"
           title="Pending approval state"
-          description="Final UX should clearly explain that booking is submitted first and becomes active only after admin approval."
+          description="Your booking becomes active after the rental team confirms availability."
         />
       </div>
     </PageSection>

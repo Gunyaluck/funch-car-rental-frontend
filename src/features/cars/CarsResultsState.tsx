@@ -1,3 +1,4 @@
+import { Alert } from '../../components/ui/alert'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
@@ -9,6 +10,7 @@ type CarsResultsStateProps = {
   filters: CarFilters
   isLoading: boolean
   errorMessage: string
+  customerCountryCode?: string
   onRetry: () => void
   onReset: () => void
 }
@@ -18,6 +20,7 @@ export function CarsResultsState({
   filters,
   isLoading,
   errorMessage,
+  customerCountryCode,
   onRetry,
   onReset,
 }: CarsResultsStateProps) {
@@ -25,11 +28,11 @@ export function CarsResultsState({
     return (
       <Card>
         <CardContent className="grid justify-items-start gap-3">
-          <Badge>No Connection</Badge>
+          <Badge variant="danger">No Connection</Badge>
           <h2 className="m-0 font-(--font-heading) text-[1.35rem]">
-            Could not load cars from the backend
+            Could not load cars
           </h2>
-          <p className="m-0 text-stone-500">{errorMessage}</p>
+          <Alert title="Connection problem">{errorMessage}</Alert>
           <Button onClick={onRetry}>Retry</Button>
         </CardContent>
       </Card>
@@ -57,7 +60,12 @@ export function CarsResultsState({
     return (
       <section className="grid gap-[18px] lg:grid-cols-2">
         {cars.map((car) => (
-          <CarCard key={car.id} car={car} filters={filters} />
+          <CarCard
+            key={car.id}
+            car={car}
+            filters={filters}
+            customerCountryCode={customerCountryCode}
+          />
         ))}
       </section>
     )
@@ -71,8 +79,7 @@ export function CarsResultsState({
           No cars match the current search
         </h2>
         <p className="m-0 text-stone-500">
-          Try removing date filters first, or check that the backend database has
-          available cars for this destination.
+          Try removing date filters first, or choose another destination.
         </p>
         <Button onClick={onReset}>Clear Filters</Button>
       </CardContent>

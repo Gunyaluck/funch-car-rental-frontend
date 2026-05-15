@@ -10,6 +10,67 @@ export function formatMoney(currencyCode: string, value: number) {
   }).format(value)
 }
 
+const currencyByCountryCode: Record<string, string> = {
+  TH: 'THB',
+  JP: 'JPY',
+  US: 'USD',
+  GB: 'GBP',
+  EU: 'EUR',
+  SG: 'SGD',
+  MY: 'MYR',
+  KR: 'KRW',
+  CN: 'CNY',
+  AU: 'AUD',
+}
+
+const usdValueByCurrencyCode: Record<string, number> = {
+  USD: 1,
+  THB: 0.027,
+  JPY: 0.0067,
+  EUR: 1.08,
+  GBP: 1.27,
+  SGD: 0.74,
+  MYR: 0.21,
+  KRW: 0.00074,
+  CNY: 0.14,
+  AUD: 0.66,
+}
+
+export function getCurrencyForCountry(countryCode: string) {
+  return currencyByCountryCode[countryCode.toUpperCase()]
+}
+
+export function getApproximateLocalMoney(
+  sourceCurrencyCode: string,
+  sourceValue: number,
+  customerCountryCode?: string,
+) {
+  if (!customerCountryCode) {
+    return null
+  }
+
+  const targetCurrencyCode = getCurrencyForCountry(customerCountryCode)
+
+  if (!targetCurrencyCode || targetCurrencyCode === sourceCurrencyCode) {
+    return null
+  }
+
+  const sourceUsdValue = usdValueByCurrencyCode[sourceCurrencyCode]
+  const targetUsdValue = usdValueByCurrencyCode[targetCurrencyCode]
+
+  if (!sourceUsdValue || !targetUsdValue) {
+    return null
+  }
+
+  return {
+    currencyCode: targetCurrencyCode,
+    formattedValue: formatMoney(
+      targetCurrencyCode,
+      (sourceValue * sourceUsdValue) / targetUsdValue,
+    ),
+  }
+}
+
 export function estimateRentalDays(pickupAt: string, returnAt: string) {
   if (!pickupAt || !returnAt) {
     return 1

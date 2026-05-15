@@ -6,17 +6,17 @@ export function AdminReportsPage() {
       <PlaceholderPanel
         label="Summary"
         title="Booking summary report"
-        description="Use this route for revenue totals, bookings by country, average approval time, and utilization charts."
+        description="Review revenue totals, bookings by country, approval timing, and fleet utilization."
       />
       <PlaceholderPanel
         label="Export"
         title="Operational exports"
-        description="Later add CSV and PDF export actions for management reporting."
+        description="Download reports for management reviews and operational planning."
       />
       <PlaceholderPanel
         label="Slices"
         title="Filterable analytics"
-        description="Reserve filters for date ranges, countries, cities, and car categories."
+        description="Filter reports by date range, country, city, and vehicle category."
       />
     </div>
   )

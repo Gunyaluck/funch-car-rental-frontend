@@ -16,13 +16,13 @@ export function AdminDashboardPage() {
       <PlaceholderPanel
         label="Revenue"
         title="Daily summary"
-        description="Reserve this card for bookings by country, approval rate, and revenue snapshots."
+        description="Review bookings by country, approval rate, and revenue snapshots."
       />
       <PlaceholderPanel
         wide
         label="Operations"
         title="Admin command center"
-        description="The dashboard route is ready for KPI cards, approval queue previews, and recent booking activity widgets."
+        description="Monitor key metrics, approval queues, and recent booking activity."
       />
     </div>
   )

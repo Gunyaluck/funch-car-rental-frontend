@@ -6,17 +6,17 @@ export function AdminMembersPage() {
       <PlaceholderPanel
         label="Members"
         title="Customer directory"
-        description="This route should list member profiles, statuses, countries, and booking activity summaries."
+        description="Review customer profiles, countries, account statuses, and booking activity."
       />
       <PlaceholderPanel
         label="Support"
         title="Member review tools"
-        description="Later add detail drawers for customer profile review, document checks, and booking history."
+        description="Open customer details, document checks, and booking history when support needs context."
       />
       <PlaceholderPanel
         label="Controls"
         title="Account management"
-        description="Reserve status changes, suspension, and internal notes for admin-only operations."
+        description="Manage account status, suspension, and internal notes for staff review."
       />
     </div>
   )

@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { PageSection } from '../components/PageSection'
+import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { buttonVariants } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
@@ -18,6 +19,10 @@ import { buildCheckoutLink } from '../features/cars/utils/car-detail-utils'
 import { getApiErrorMessage, quotePricing } from '../features/pricing/api'
 import type { PricingQuote } from '../features/pricing/types'
 
+function getStoredCustomerCountryCode() {
+  return window.localStorage.getItem('customerCountryCode') ?? 'TH'
+}
+
 export function CarDetailPage() {
   const { carId } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -31,6 +36,7 @@ export function CarDetailPage() {
 
   const pickupAt = searchParams.get('pickupAt') ?? ''
   const returnAt = searchParams.get('returnAt') ?? ''
+  const customerCountryCode = getStoredCustomerCountryCode()
 
   useEffect(() => {
     let isCurrent = true
@@ -57,7 +63,7 @@ export function CarDetailPage() {
           setErrorMessage(
             error instanceof Error
               ? error.message
-              : 'Unable to load this vehicle from the backend.',
+              : 'Unable to load this vehicle right now.',
           )
         }
       } finally {
@@ -156,7 +162,7 @@ export function CarDetailPage() {
       <PageSection
         eyebrow="Car Detail"
         title="Loading vehicle details"
-        description="Fetching the selected vehicle from the backend database."
+        description="Preparing the selected vehicle details."
       >
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
           <div className="h-[430px] animate-pulse rounded-[32px] bg-black/5" />
@@ -171,15 +177,17 @@ export function CarDetailPage() {
       <PageSection
         eyebrow="Car Detail"
         title="Vehicle not available"
-        description="The selected vehicle could not be loaded from the backend."
+        description="The selected vehicle could not be loaded right now."
       >
         <Card>
           <CardContent className="grid justify-items-start gap-3">
-            <Badge>No Vehicle</Badge>
-            <p className="m-0 text-stone-500">{errorMessage || 'Car not found.'}</p>
+            <Badge variant="danger">No Vehicle</Badge>
+            <Alert title="Vehicle could not be loaded">
+              {errorMessage || 'Car not found.'}
+            </Alert>
             <Link to="/cars" className={buttonVariants({ variant: 'outline' })}>
               <ArrowLeft className="size-4" />
-              Back to Cars
+              Back to car list
             </Link>
           </CardContent>
         </Card>
@@ -199,7 +207,7 @@ export function CarDetailPage() {
           className={cn(buttonVariants({ variant: 'ghost' }), 'w-fit')}
         >
           <ArrowLeft className="size-4" />
-          Back to results
+          Back to car list
         </Link>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(330px,0.55fr)]">
@@ -218,6 +226,7 @@ export function CarDetailPage() {
             quoteErrorMessage={quoteErrorMessage}
             checkoutLink={checkoutLink}
             isBookable={car.status === 'AVAILABLE'}
+            customerCountryCode={customerCountryCode}
             onDateChange={updateSearchDate}
           />
         </div>

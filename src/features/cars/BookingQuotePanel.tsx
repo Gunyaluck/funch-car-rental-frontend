@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Alert } from '../../components/ui/alert'
 import { Badge } from '../../components/ui/badge'
 import { buttonVariants } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
@@ -7,7 +8,7 @@ import { DateTimePicker } from '../../components/ui/date-time-picker'
 import { FieldLabel, Label } from '../../components/ui/label'
 import { cn } from '../../lib/utils'
 import type { CarDetailItem } from './types'
-import { formatMoney } from './utils/car-detail-utils'
+import { formatMoney, getApproximateLocalMoney } from './utils/car-detail-utils'
 import type { PricingQuote } from '../pricing/types'
 
 function formatDateTime(value: Date) {
@@ -30,6 +31,7 @@ type BookingQuotePanelProps = {
   quoteErrorMessage: string
   checkoutLink: string | { pathname: string; search?: string }
   isBookable: boolean
+  customerCountryCode?: string
   onDateChange: (name: 'pickupAt' | 'returnAt', value: string) => void
 }
 
@@ -42,14 +44,25 @@ export function BookingQuotePanel({
   quoteErrorMessage,
   checkoutLink,
   isBookable,
+  customerCountryCode,
   onDateChange,
 }: BookingQuotePanelProps) {
   const minimumPickupAt = new Date(Date.now() + car.minAdvanceBookingHr * 60 * 60 * 1000)
   const canContinue = isBookable && Boolean(quote) && !isQuoteLoading && !quoteErrorMessage
+  const displayCurrencyCode = quote?.currencyCode ?? car.currencyCode
+  const displayPrice = quote?.grandTotal ?? car.dailyRate
+  const localEstimate = getApproximateLocalMoney(
+    displayCurrencyCode,
+    displayPrice,
+    customerCountryCode,
+  )
+  const quoteLocalEstimate = quote
+    ? getApproximateLocalMoney(quote.currencyCode, quote.grandTotal, customerCountryCode)
+    : null
   const dateHelpMessage = !isBookable
     ? 'This vehicle is not available for booking right now.'
     : !pickupAt && !returnAt
-      ? 'Select pickup and return dates to calculate a backend quote.'
+      ? 'Select pickup and return dates to see the price.'
       : pickupAt && !returnAt
         ? 'Select a return date to calculate the quote.'
         : !pickupAt && returnAt
@@ -68,18 +81,21 @@ export function BookingQuotePanel({
       <Card>
         <CardContent className="grid gap-5">
           <div>
-            <Badge variant={isBookable && !quoteErrorMessage ? 'default' : 'muted'}>
+            <Badge variant={quoteErrorMessage ? 'danger' : isBookable ? 'default' : 'muted'}>
               {statusLabel}
             </Badge>
             <div className="mt-3">
               <p className="m-0 font-(--font-heading) text-[2.1rem] leading-none">
-                {quote
-                  ? formatMoney(quote.currencyCode, quote.grandTotal)
-                  : formatMoney(car.currencyCode, car.dailyRate)}
+                {formatMoney(displayCurrencyCode, displayPrice)}
                 <span className="ml-1 text-base text-stone-500">
                   {quote ? 'total' : '/day'}
                 </span>
               </p>
+              {localEstimate ? (
+                <p className="m-0 text-sm text-stone-500">
+                  Approx. {localEstimate.formattedValue} in your home currency
+                </p>
+              ) : null}
               <p className="m-0 text-stone-500">
                 {quote
                   ? `${quote.pricingMode.toLowerCase()} pricing`
@@ -89,9 +105,9 @@ export function BookingQuotePanel({
           </div>
 
           {!isBookable ? (
-            <div className="rounded-3xl border border-clay-600/20 bg-clay-600/10 p-4 text-sm text-forest-900">
+            <Alert title="Car unavailable">
               This car cannot be booked right now because its status is {car.status.toLowerCase()}.
-            </div>
+            </Alert>
           ) : null}
 
           {isBookable ? (
@@ -154,7 +170,14 @@ export function BookingQuotePanel({
                 </div>
                 <div className="flex items-center justify-between gap-3 border-t border-black/10 pt-3">
                   <span className="font-semibold">Grand total</span>
-                  <strong>{formatMoney(quote.currencyCode, quote.grandTotal)}</strong>
+                  <span className="text-right">
+                    <strong>{formatMoney(quote.currencyCode, quote.grandTotal)}</strong>
+                    {quoteLocalEstimate ? (
+                      <span className="block text-xs font-normal text-stone-500">
+                        Approx. {quoteLocalEstimate.formattedValue}
+                      </span>
+                    ) : null}
+                  </span>
                 </div>
               </>
             ) : (
@@ -166,9 +189,9 @@ export function BookingQuotePanel({
           ) : null}
 
           {isBookable && quoteErrorMessage ? (
-            <div className="rounded-3xl border border-clay-600/20 bg-clay-600/10 p-4 text-sm text-forest-900">
+            <Alert title="Quote unavailable">
               {quoteErrorMessage}
-            </div>
+            </Alert>
           ) : null}
 
           {isBookable && quote?.breakdown.length ? (

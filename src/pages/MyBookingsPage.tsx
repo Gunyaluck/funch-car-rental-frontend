@@ -5,24 +5,24 @@ export function MyBookingsPage() {
   return (
     <PageSection
       eyebrow="Account"
-      title="My bookings route scaffold"
-      description="This page should show booking history, statuses, dates, car info, and next-step actions for the customer."
+      title="My bookings"
+      description="Track your booking history, statuses, dates, vehicle details, and next steps."
     >
       <div className="grid grid-cols-12 gap-4">
         <PlaceholderPanel
           label="History"
           title="Booking list"
-          description="Connect this route to GET /my-bookings with cards or table rows grouped by status."
+          description="Review upcoming, pending, completed, and cancelled bookings in one place."
         />
         <PlaceholderPanel
           label="Status"
           title="Approval timeline"
-          description="Show pending, approved, rejected, cancelled, and completed states with admin notes where appropriate."
+          description="Follow pending, approved, rejected, cancelled, and completed status updates."
         />
         <PlaceholderPanel
           label="Support"
-          title="Booking detail drill-down"
-          description="Later this page can link into booking detail, invoice, cancellation rules, and contact support actions."
+          title="Booking details"
+          description="Open a booking to view invoices, cancellation rules, and support options."
         />
       </div>
     </PageSection>

@@ -6,17 +6,17 @@ export function AdminBookingsPage() {
       <PlaceholderPanel
         label="Approval"
         title="Booking review table"
-        description="This route should host filters, booking rows, customer data, quote breakdown, and approve/reject actions."
+        description="Review booking requests, customer details, price breakdowns, and approval actions."
       />
       <PlaceholderPanel
         label="Actions"
         title="Status controls"
-        description="Connect approve and reject buttons to admin booking endpoints with admin note support."
+        description="Approve, reject, or add internal notes before updating a booking status."
       />
       <PlaceholderPanel
         label="Audit"
         title="Booking timeline"
-        description="Render status changes, timestamps, and actor history to support traceable approvals."
+        description="Track status changes, timestamps, and staff activity for each booking."
       />
     </div>
   )
