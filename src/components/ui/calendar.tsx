@@ -28,7 +28,8 @@ export function Calendar({ className, classNames, ...props }: DayPickerProps) {
           'bg-clay-600 text-sand-50 hover:bg-clay-600 hover:text-sand-50 focus:bg-clay-600 focus:text-sand-50',
         today: 'border border-clay-600/45',
         outside: 'text-stone-500/45',
-        disabled: 'text-stone-500/35',
+        disabled:
+          'pointer-events-none opacity-35 [&_button]:cursor-not-allowed [&_button]:border-black/5 [&_button]:bg-black/5 [&_button]:text-stone-500/45',
         ...classNames,
       }}
       {...props}

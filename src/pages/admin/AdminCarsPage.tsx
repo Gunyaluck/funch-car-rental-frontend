@@ -6,17 +6,17 @@ export function AdminCarsPage() {
       <PlaceholderPanel
         label="Fleet"
         title="Car catalog management"
-        description="Manage core car data, pricing, operating hours, and booking constraints from this route."
+        description="Manage car details, pricing, operating hours, and booking constraints."
       />
       <PlaceholderPanel
         label="Assets"
         title="Image and option management"
-        description="Add forms for gallery uploads, add-ons, cover images, and descriptive content here."
+        description="Maintain gallery images, add-ons, cover photos, and descriptive content."
       />
       <PlaceholderPanel
         label="Status"
         title="Availability and maintenance"
-        description="Reserve this area for availability blocks, maintenance periods, and retirement status changes."
+        description="Review availability blocks, maintenance periods, and retired vehicles."
       />
     </div>
   )

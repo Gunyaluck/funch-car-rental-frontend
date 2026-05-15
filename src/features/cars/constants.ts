@@ -9,3 +9,5 @@ export const defaultCarFilters: CarFilters = {
   pickupAt: '',
   returnAt: '',
 }
+
+export const minimumAdvanceBookingHours = 4

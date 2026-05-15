@@ -27,7 +27,7 @@ export function CarsResultsSummary({
             {isLoading ? 'Loading cars...' : `${visibleCount} cars available`}
           </h2>
           <p className="m-0 text-stone-500">
-            Showing inventory loaded from the backend database.
+            Showing cars that match your current search.
           </p>
         </div>
 

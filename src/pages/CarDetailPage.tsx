@@ -1,10 +1,12 @@
 import { ArrowLeft } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { PageSection } from '../components/PageSection'
+import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { buttonVariants } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
+import { LoadingSpring } from '../components/ui/loading-spring'
 import { cn } from '../lib/utils'
 import { getCarById } from '../features/cars/api'
 import { BookingQuotePanel } from '../features/cars/BookingQuotePanel'
@@ -14,7 +16,13 @@ import { CarOptionsPanel } from '../features/cars/CarOptionsPanel'
 import { CarSpecsGrid } from '../features/cars/CarSpecsGrid'
 import { LocationHoursPanel } from '../features/cars/LocationHoursPanel'
 import type { CarDetailItem } from '../features/cars/types'
-import { buildCheckoutLink, estimateRentalDays } from '../features/cars/utils/car-detail-utils'
+import { buildCheckoutLink } from '../features/cars/utils/car-detail-utils'
+import { getApiErrorMessage, quotePricing } from '../features/pricing/api'
+import type { PricingQuote } from '../features/pricing/types'
+
+function getStoredCustomerCountryCode() {
+  return window.localStorage.getItem('customerCountryCode') ?? 'TH'
+}
 
 export function CarDetailPage() {
   const { carId } = useParams()
@@ -23,9 +31,13 @@ export function CarDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([])
+  const [quote, setQuote] = useState<PricingQuote | null>(null)
+  const [isQuoteLoading, setIsQuoteLoading] = useState(false)
+  const [quoteErrorMessage, setQuoteErrorMessage] = useState('')
 
   const pickupAt = searchParams.get('pickupAt') ?? ''
   const returnAt = searchParams.get('returnAt') ?? ''
+  const customerCountryCode = getStoredCustomerCountryCode()
 
   useEffect(() => {
     let isCurrent = true
@@ -52,7 +64,7 @@ export function CarDetailPage() {
           setErrorMessage(
             error instanceof Error
               ? error.message
-              : 'Unable to load this vehicle from the backend.',
+              : 'Unable to load this vehicle right now.',
           )
         }
       } finally {
@@ -69,26 +81,62 @@ export function CarDetailPage() {
     }
   }, [carId])
 
-  const selectedOptions = useMemo(
-    () => car?.options.filter((option) => selectedOptionIds.includes(option.id)) ?? [],
-    [car?.options, selectedOptionIds],
-  )
-  const rentalDays = estimateRentalDays(pickupAt, returnAt)
-  const optionsTotal = selectedOptions.reduce(
-    (total, option) => total + option.pricePerDay * rentalDays,
-    0,
-  )
-  const estimatedTotal = car ? car.dailyRate * rentalDays + optionsTotal : 0
   const coverImage = car?.images.find((image) => image.isCover)?.url ?? car?.images[0]?.url
   const checkoutLink =
-    car && carId
+    quote && carId
       ? buildCheckoutLink({
+          carId,
+          pickupAt: quote.pickupAt,
+          returnAt: quote.returnAt,
+          optionIds: selectedOptionIds,
+        })
+      : '/checkout'
+
+  useEffect(() => {
+    let isCurrent = true
+
+    async function fetchQuote() {
+      if (!carId || !car || car.status !== 'AVAILABLE' || !pickupAt || !returnAt) {
+        setQuote(null)
+        setQuoteErrorMessage('')
+        setIsQuoteLoading(false)
+        return
+      }
+
+      setIsQuoteLoading(true)
+      setQuoteErrorMessage('')
+
+      try {
+        const result = await quotePricing({
           carId,
           pickupAt,
           returnAt,
           optionIds: selectedOptionIds,
         })
-      : '/checkout'
+
+        if (isCurrent) {
+          setQuote(result)
+        }
+      } catch (error) {
+        if (isCurrent) {
+          setQuote(null)
+          setQuoteErrorMessage(
+            getApiErrorMessage(error, 'Unable to calculate this booking quote.'),
+          )
+        }
+      } finally {
+        if (isCurrent) {
+          setIsQuoteLoading(false)
+        }
+      }
+    }
+
+    fetchQuote()
+
+    return () => {
+      isCurrent = false
+    }
+  }, [car, carId, pickupAt, returnAt, selectedOptionIds])
 
   function updateSearchDate(name: 'pickupAt' | 'returnAt', value: string) {
     const nextParams = new URLSearchParams(searchParams)
@@ -115,11 +163,15 @@ export function CarDetailPage() {
       <PageSection
         eyebrow="Car Detail"
         title="Loading vehicle details"
-        description="Fetching the selected vehicle from the backend database."
+        description="Preparing the selected vehicle details."
       >
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
-          <div className="h-[430px] animate-pulse rounded-[32px] bg-black/5" />
-          <div className="h-[430px] animate-pulse rounded-[32px] bg-black/5" />
+          <div className="grid h-[430px] place-items-center rounded-[32px] bg-black/5">
+            <LoadingSpring label="Loading vehicle" />
+          </div>
+          <div className="grid h-[430px] place-items-center rounded-[32px] bg-black/5">
+            <LoadingSpring label="Preparing quote" />
+          </div>
         </div>
       </PageSection>
     )
@@ -130,15 +182,17 @@ export function CarDetailPage() {
       <PageSection
         eyebrow="Car Detail"
         title="Vehicle not available"
-        description="The selected vehicle could not be loaded from the backend."
+        description="The selected vehicle could not be loaded right now."
       >
         <Card>
           <CardContent className="grid justify-items-start gap-3">
-            <Badge>No Vehicle</Badge>
-            <p className="m-0 text-stone-500">{errorMessage || 'Car not found.'}</p>
+            <Badge variant="danger">No Vehicle</Badge>
+            <Alert title="Vehicle could not be loaded">
+              {errorMessage || 'Car not found.'}
+            </Alert>
             <Link to="/cars" className={buttonVariants({ variant: 'outline' })}>
               <ArrowLeft className="size-4" />
-              Back to Cars
+              Back to car list
             </Link>
           </CardContent>
         </Card>
@@ -158,7 +212,7 @@ export function CarDetailPage() {
           className={cn(buttonVariants({ variant: 'ghost' }), 'w-fit')}
         >
           <ArrowLeft className="size-4" />
-          Back to results
+          Back to car list
         </Link>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(330px,0.55fr)]">
@@ -172,11 +226,12 @@ export function CarDetailPage() {
             car={car}
             pickupAt={pickupAt}
             returnAt={returnAt}
-            rentalDays={rentalDays}
-            optionsTotal={optionsTotal}
-            estimatedTotal={estimatedTotal}
+            quote={quote}
+            isQuoteLoading={isQuoteLoading}
+            quoteErrorMessage={quoteErrorMessage}
             checkoutLink={checkoutLink}
             isBookable={car.status === 'AVAILABLE'}
+            customerCountryCode={customerCountryCode}
             onDateChange={updateSearchDate}
           />
         </div>

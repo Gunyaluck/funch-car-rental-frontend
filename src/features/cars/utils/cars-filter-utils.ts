@@ -1,4 +1,5 @@
 import { defaultCarFilters } from '../constants'
+import { getCountryName } from '../country-names'
 import type { CarFilters, CarListItem } from '../types'
 
 export const EMPTY_SELECT_VALUE = '__all__'
@@ -44,7 +45,7 @@ export function optionsFromCars(cars: CarListItem[]) {
           car.countryCode,
           {
             value: car.countryCode,
-            label: car.countryName ?? car.countryCode,
+            label: car.countryName ?? getCountryName(car.countryCode),
           },
         ]),
       ).values(),

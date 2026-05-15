@@ -7,15 +7,15 @@ export function AdminLoginPage() {
       <div className="w-full max-w-[640px]">
         <PageSection
           eyebrow="Admin Auth"
-          title="Admin login route scaffold"
-          description="This route is reserved for role-protected admin authentication before entering management pages."
+          title="Admin sign in"
+          description="Sign in with an authorized admin account to manage bookings and fleet operations."
         >
           <div className="grid grid-cols-12 gap-4">
             <PlaceholderPanel
               wide
               label="Admin Session"
               title="Protected access entry point"
-              description="Connect this form to an admin-capable login flow and redirect authenticated admins into /admin."
+              description="Only authorized staff can access booking approvals, reports, and fleet controls."
             />
           </div>
         </PageSection>
