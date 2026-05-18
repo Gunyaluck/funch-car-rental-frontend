@@ -3,6 +3,8 @@ export type AuthUser = {
   email: string
   firstName?: string
   lastName?: string
+  role?: 'CUSTOMER' | 'ADMIN'
+  status?: 'ACTIVE' | 'SUSPENDED' | 'DELETED'
   phone?: string
   countryCode?: string
   timezone?: string

@@ -258,10 +258,10 @@ export function CheckoutPage() {
             <Card>
               <CardContent className="grid gap-3 text-center">
                 <CheckCircle2 className="mx-auto size-10 text-emerald-700" />
-                <Badge className="mx-auto">Pending approval</Badge>
+                <Badge className="mx-auto">Deposit required</Badge>
                 <h2 className="m-0 text-xl font-semibold">Booking request submitted</h2>
                 <p className="m-0 text-stone-500">
-                  Your booking is waiting for admin approval. Track the status in My Bookings.
+                  Pay the deposit from My Bookings. The branch will call to confirm your reservation after payment.
                 </p>
                 <div className="flex justify-center">
                   <Link to="/my-bookings" className="font-semibold text-forest-800">
@@ -394,7 +394,7 @@ export function CheckoutPage() {
                     <strong>{formatMoney(quote.currencyCode, quote.grandTotal)}</strong>
                   </div>
                   <p className="m-0 text-sm text-stone-500">
-                    Status will be Pending until an admin approves this booking.
+                    Deposit is charged first. Final confirmation happens after the branch reviews and calls the customer.
                   </p>
                 </div>
               ) : (
@@ -406,7 +406,7 @@ export function CheckoutPage() {
                 disabled={!quote || isLoading || isSubmitting || Boolean(booking)}
                 onClick={handleSubmit}
               >
-                {isSubmitting ? 'Submitting...' : 'Submit booking request'}
+                {isSubmitting ? 'Submitting...' : 'Submit booking and continue to deposit'}
                 <ArrowRight className="size-4" />
               </Button>
             </CardContent>

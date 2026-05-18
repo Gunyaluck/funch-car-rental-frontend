@@ -5,10 +5,15 @@ import { Link } from 'react-router-dom'
 import { PageSection } from '../components/PageSection'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
 import { buttonVariants } from '../components/ui/button-variants'
 import { Card, CardContent } from '../components/ui/card'
-import { listMyBookings } from '../features/bookings/api'
-import type { BookingItem, BookingStatus } from '../features/bookings/types'
+import {
+  cancelBooking,
+  confirmDepositPayment,
+  listMyBookings,
+} from '../features/bookings/api'
+import type { BookingItem, BookingStatus, PaymentStatus } from '../features/bookings/types'
 import { formatMoney } from '../features/cars/utils/car-detail-utils'
 
 function getApiErrorMessage(error: unknown, fallback: string) {
@@ -27,7 +32,11 @@ function formatDateTime(value: string, timezone: string) {
   }).format(new Date(value))
 }
 
-function getStatusVariant(status: BookingStatus) {
+function getStatusVariant(status: BookingStatus, paymentStatus: PaymentStatus) {
+  if (paymentStatus === 'REFUND_PENDING' || paymentStatus === 'REFUNDED') {
+    return 'danger' as const
+  }
+
   if (status === 'REJECTED' || status === 'CANCELLED') {
     return 'danger' as const
   }
@@ -39,10 +48,79 @@ function getStatusVariant(status: BookingStatus) {
   return 'muted' as const
 }
 
+function getBookingHeadline(booking: BookingItem) {
+  if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PENDING') {
+    return 'Deposit required'
+  }
+
+  if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PAID') {
+    return 'Awaiting branch confirmation'
+  }
+
+  if (booking.status === 'APPROVED') {
+    return 'Confirmed by branch'
+  }
+
+  if (booking.paymentStatus === 'REFUND_PENDING') {
+    return 'Refund pending'
+  }
+
+  if (booking.paymentStatus === 'REFUNDED') {
+    return 'Refund completed'
+  }
+
+  if (booking.paymentStatus === 'EXPIRED') {
+    return 'Deposit window expired'
+  }
+
+  return booking.status
+}
+
+function getBookingMessage(booking: BookingItem) {
+  if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PENDING') {
+    return 'Pay the deposit to move this booking into the branch confirmation queue.'
+  }
+
+  if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PAID') {
+    return 'Deposit received. The branch will call to confirm the reservation.'
+  }
+
+  if (booking.status === 'APPROVED') {
+    return 'Branch confirmed the booking. Bring these details on pickup day.'
+  }
+
+  if (booking.status === 'REJECTED' && booking.paymentStatus === 'REFUND_PENDING') {
+    return 'The branch could not confirm this booking. Refund still needs to be processed.'
+  }
+
+  if (booking.status === 'CANCELLED' && booking.paymentStatus === 'REFUND_PENDING') {
+    return 'This booking was cancelled in time. Refund still needs to be processed.'
+  }
+
+  if (booking.paymentStatus === 'REFUNDED') {
+    return 'The deposit has been marked as refunded.'
+  }
+
+  if (booking.paymentStatus === 'EXPIRED') {
+    return 'The deposit was not paid before the payment window closed.'
+  }
+
+  return 'Track branch confirmation, payment progress, and any admin notes here.'
+}
+
+function canPayDeposit(booking: BookingItem) {
+  return booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PENDING'
+}
+
+function canCancelBooking(booking: BookingItem) {
+  return booking.canCancel && ['PENDING', 'APPROVED'].includes(booking.status)
+}
+
 export function MyBookingsPage() {
   const [bookings, setBookings] = useState<BookingItem[]>([])
   const [errorMessage, setErrorMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [actionBookingId, setActionBookingId] = useState('')
 
   useEffect(() => {
     let isCurrent = true
@@ -75,10 +153,42 @@ export function MyBookingsPage() {
     }
   }, [])
 
+  async function handlePayDeposit(bookingId: string) {
+    setActionBookingId(bookingId)
+    setErrorMessage('')
+
+    try {
+      const updatedBooking = await confirmDepositPayment(bookingId)
+      setBookings((currentBookings) =>
+        currentBookings.map((booking) => (booking.id === bookingId ? updatedBooking : booking)),
+      )
+    } catch (error) {
+      setErrorMessage(getApiErrorMessage(error, 'Unable to confirm the deposit payment.'))
+    } finally {
+      setActionBookingId('')
+    }
+  }
+
+  async function handleCancelBooking(bookingId: string) {
+    setActionBookingId(bookingId)
+    setErrorMessage('')
+
+    try {
+      const updatedBooking = await cancelBooking(bookingId)
+      setBookings((currentBookings) =>
+        currentBookings.map((booking) => (booking.id === bookingId ? updatedBooking : booking)),
+      )
+    } catch (error) {
+      setErrorMessage(getApiErrorMessage(error, 'Unable to cancel this booking.'))
+    } finally {
+      setActionBookingId('')
+    }
+  }
+
   return (
     <PageSection
       title="My bookings"
-      description="Track your booking requests, approval status, vehicle details, and pricing."
+      description="Track deposit payment, branch confirmation, refund handling, and pickup details."
     >
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="grid gap-4">
@@ -116,86 +226,130 @@ export function MyBookingsPage() {
             </Card>
           ) : null}
 
-          {bookings.map((booking) => (
-            <Card key={booking.id}>
-              <CardContent className="grid gap-4">
-                <div>
-                  <Badge variant={getStatusVariant(booking.status)}>{booking.status}</Badge>
-                  <h2 className="m-0 mt-2 text-xl font-semibold">
-                    {booking.car.brand} {booking.car.model}
-                  </h2>
-                  <p className="m-0 text-stone-500">
-                    {booking.car.name} · {booking.car.city}, {booking.car.countryCode} ·{' '}
-                    {booking.car.year}
-                  </p>
-                </div>
+          {bookings.map((booking) => {
+            const isBusy = actionBookingId === booking.id
 
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
-                    <span className="text-sm font-semibold text-stone-500">Pickup</span>
-                    <span>{formatDateTime(booking.pickupAt, booking.pickupTimezone)}</span>
-                  </div>
-                  <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
-                    <span className="text-sm font-semibold text-stone-500">Return</span>
-                    <span>{formatDateTime(booking.returnAt, booking.pickupTimezone)}</span>
-                  </div>
-                </div>
-
-                {booking.options.length ? (
+            return (
+              <Card key={booking.id}>
+                <CardContent className="grid gap-4">
                   <div className="grid gap-2">
-                    <span className="text-sm font-semibold text-stone-500">Options</span>
-                    {booking.options.map((option) => (
-                      <div
-                        key={option.id}
-                        className="flex justify-between gap-3 rounded-2xl bg-white/60 px-4 py-3"
-                      >
-                        <span>{option.name}</span>
-                        <strong>{formatMoney(booking.currencyCode, option.totalPrice)}</strong>
-                      </div>
-                    ))}
+                    <Badge variant={getStatusVariant(booking.status, booking.paymentStatus)}>
+                      {getBookingHeadline(booking)}
+                    </Badge>
+                    <h2 className="m-0 text-xl font-semibold">
+                      {booking.car.brand} {booking.car.model}
+                    </h2>
+                    <p className="m-0 text-stone-500">
+                      {booking.car.name} · {booking.car.city}, {booking.car.countryCode} ·{' '}
+                      {booking.car.year}
+                    </p>
+                    <p className="m-0 text-sm text-stone-500">{getBookingMessage(booking)}</p>
                   </div>
-                ) : null}
 
-                <div className="grid gap-3 rounded-2xl bg-white/60 p-4 md:grid-cols-3">
-                  <div>
-                    <span className="block text-sm font-semibold text-stone-500">Rental</span>
-                    <strong>{formatMoney(booking.currencyCode, booking.subtotal)}</strong>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
+                      <span className="text-sm font-semibold text-stone-500">Pickup</span>
+                      <span>{formatDateTime(booking.pickupAt, booking.pickupTimezone)}</span>
+                    </div>
+                    <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
+                      <span className="text-sm font-semibold text-stone-500">Return</span>
+                      <span>{formatDateTime(booking.returnAt, booking.pickupTimezone)}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="block text-sm font-semibold text-stone-500">Options</span>
-                    <strong>{formatMoney(booking.currencyCode, booking.optionsTotal)}</strong>
+
+                  <div className="grid gap-3 rounded-2xl bg-white/60 p-4 md:grid-cols-3">
+                    <div>
+                      <span className="block text-sm font-semibold text-stone-500">Deposit</span>
+                      <strong>{formatMoney(booking.currencyCode, booking.depositAmount)}</strong>
+                    </div>
+                    <div>
+                      <span className="block text-sm font-semibold text-stone-500">
+                        Pay at pickup
+                      </span>
+                      <strong>
+                        {formatMoney(booking.currencyCode, booking.amountDueAtPickup)}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="block text-sm font-semibold text-stone-500">Total</span>
+                      <strong>{formatMoney(booking.currencyCode, booking.grandTotal)}</strong>
+                    </div>
                   </div>
-                  <div>
-                    <span className="block text-sm font-semibold text-stone-500">Total</span>
-                    <strong>{formatMoney(booking.currencyCode, booking.grandTotal)}</strong>
+
+                  {booking.depositDueAt ? (
+                    <p className="m-0 text-sm text-stone-500">
+                      Deposit due by {formatDateTime(booking.depositDueAt, booking.pickupTimezone)}
+                    </p>
+                  ) : null}
+
+                  {booking.options.length ? (
+                    <div className="grid gap-2">
+                      <span className="text-sm font-semibold text-stone-500">Options</span>
+                      {booking.options.map((option) => (
+                        <div
+                          key={option.id}
+                          className="flex justify-between gap-3 rounded-2xl bg-white/60 px-4 py-3"
+                        >
+                          <span>{option.name}</span>
+                          <strong>{formatMoney(booking.currencyCode, option.totalPrice)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {booking.adminNote ? (
+                    <Alert title="Branch note">{booking.adminNote}</Alert>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-3">
+                    {canPayDeposit(booking) ? (
+                      <Button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => handlePayDeposit(booking.id)}
+                      >
+                        {isBusy ? 'Processing...' : 'Pay deposit now'}
+                      </Button>
+                    ) : null}
+
+                    {canCancelBooking(booking) ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isBusy}
+                        onClick={() => handleCancelBooking(booking.id)}
+                      >
+                        {isBusy ? 'Processing...' : 'Cancel booking'}
+                      </Button>
+                    ) : null}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
 
         <aside className="grid h-fit gap-4 lg:sticky lg:top-28">
           <Card>
             <CardContent className="grid gap-4">
-              <h2 className="m-0 text-xl font-semibold">Next steps</h2>
+              <h2 className="m-0 text-xl font-semibold">How this works</h2>
               <div className="grid gap-3">
                 <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
-                  <Badge variant="muted" className="w-fit">Pending</Badge>
+                  <Badge variant="muted" className="w-fit">Deposit required</Badge>
                   <p className="m-0 text-sm text-stone-500">
-                    Your request is waiting for admin approval. No action is needed yet.
+                    Pay the deposit first so the booking enters the branch review queue.
                   </p>
                 </div>
                 <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
-                  <Badge className="w-fit">Approved</Badge>
+                  <Badge className="w-fit">Awaiting confirmation</Badge>
                   <p className="m-0 text-sm text-stone-500">
-                    Your booking is confirmed. Bring your booking details when picking up the car.
+                    After deposit payment, the branch calls the customer and confirms availability.
                   </p>
                 </div>
                 <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
-                  <Badge variant="danger" className="w-fit">Rejected</Badge>
+                  <Badge variant="danger" className="w-fit">Refund handling</Badge>
                   <p className="m-0 text-sm text-stone-500">
-                    Review the admin note and choose another vehicle or rental time.
+                    If the branch rejects the booking or the customer cancels in time, the deposit moves to refund handling.
                   </p>
                 </div>
               </div>
