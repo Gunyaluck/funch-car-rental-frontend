@@ -7,11 +7,14 @@ type ApiResponse<T> = {
 
 type AuthResponse = AuthSession & {
   token?: string
+  tokens?: {
+    accessToken?: string
+  }
 }
 
 function normalizeAuthSession(response: AuthResponse): AuthSession {
   return {
-    accessToken: response.accessToken ?? response.token ?? '',
+    accessToken: response.accessToken ?? response.token ?? response.tokens?.accessToken ?? '',
     user: response.user,
   }
 }

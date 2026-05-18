@@ -1,6 +1,6 @@
 import { Link, createSearchParams } from 'react-router-dom'
 import { Badge } from '../../components/ui/badge'
-import { buttonVariants } from '../../components/ui/button'
+import { buttonVariants } from '../../components/ui/button-variants'
 import { Card, CardContent } from '../../components/ui/card'
 import { cn } from '../../lib/utils'
 import { getCountryName } from './country-names'

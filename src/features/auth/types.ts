@@ -6,6 +6,7 @@ export type AuthUser = {
   phone?: string
   countryCode?: string
   timezone?: string
+  currencyCode?: string
   preferredCurrency?: string
 }
 
@@ -24,6 +25,5 @@ export type RegisterPayload = LoginPayload & {
   lastName: string
   phone: string
   countryCode: string
-  timezone: string
-  preferredCurrency: string
+  timezone?: string
 }

@@ -1,5 +1,6 @@
-import { ArrowRight } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { isAxiosError } from 'axios'
+import { ArrowRight, Eye, EyeOff } from 'lucide-react'
+import { useState, type FormEvent, type InputHTMLAttributes } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { PageSection } from '../components/PageSection'
 import { Alert } from '../components/ui/alert'
@@ -7,21 +8,132 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { FieldLabel, Label } from '../components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select'
 import { register } from '../features/auth/api'
 import { storeAuthSession } from '../features/auth/storage'
+import { countryOptions } from '../lib/country-options'
 
-const countryDefaults: Record<string, { timezone: string; currency: string }> = {
-  TH: { timezone: 'Asia/Bangkok', currency: 'THB' },
-  JP: { timezone: 'Asia/Tokyo', currency: 'JPY' },
-  SG: { timezone: 'Asia/Singapore', currency: 'SGD' },
-  MY: { timezone: 'Asia/Kuala_Lumpur', currency: 'MYR' },
-  US: { timezone: 'America/New_York', currency: 'USD' },
-  GB: { timezone: 'Europe/London', currency: 'GBP' },
-  AU: { timezone: 'Australia/Sydney', currency: 'AUD' },
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const phonePattern = /^[+\d\s()-]{6,20}$/
+
+type PasswordFieldProps = InputHTMLAttributes<HTMLInputElement> & {
+  isVisible: boolean
+  onVisibilityChange: () => void
+}
+
+type RegisterFieldErrors = Partial<
+  Record<'firstName' | 'lastName' | 'email' | 'password' | 'confirmPassword' | 'phone' | 'countryCode', string>
+>
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) {
+    return null
+  }
+
+  return <p className="m-0 text-sm font-medium text-red-600">{message}</p>
+}
+
+function PasswordField({
+  className,
+  isVisible,
+  onVisibilityChange,
+  ...props
+}: PasswordFieldProps) {
+  return (
+    <div className="relative">
+      <Input
+        className={`pr-12 ${className ?? ''}`}
+        type={isVisible ? 'text' : 'password'}
+        {...props}
+      />
+      <button
+        type="button"
+        className="absolute top-1/2 right-3 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-stone-500 transition hover:bg-black/5 hover:text-forest-800 focus:ring-2 focus:ring-clay-600/20 focus:outline-none"
+        onClick={onVisibilityChange}
+        aria-label={isVisible ? 'Hide password' : 'Show password'}
+      >
+        {isVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </button>
+    </div>
+  )
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  if (isAxiosError<{ message?: string }>(error)) {
+    return error.response?.data?.message ?? fallback
+  }
+
+  return getErrorMessage(error, fallback)
+}
+
+function getBrowserTimezone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
+function validateRegisterForm({
+  firstName,
+  lastName,
+  email,
+  password,
+  confirmPassword,
+  phone,
+  countryCode,
+}: {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+  confirmPassword: string
+  phone: string
+  countryCode: string
+}) {
+  const errors: RegisterFieldErrors = {}
+
+  if (!firstName.trim()) {
+    errors.firstName = 'First name is required.'
+  }
+
+  if (!lastName.trim()) {
+    errors.lastName = 'Last name is required.'
+  }
+
+  if (!email.trim()) {
+    errors.email = 'Email is required.'
+  } else if (!emailPattern.test(email.trim())) {
+    errors.email = 'Enter a valid email address.'
+  }
+
+  if (!password) {
+    errors.password = 'Password is required.'
+  } else if (password.length < 8) {
+    errors.password = 'Password must be at least 8 characters.'
+  }
+
+  if (!confirmPassword) {
+    errors.confirmPassword = 'Confirm your password.'
+  } else if (password !== confirmPassword) {
+    errors.confirmPassword = 'Passwords do not match.'
+  }
+
+  if (phone.trim() && !phonePattern.test(phone.trim())) {
+    errors.phone = 'Enter a valid phone number.'
+  }
+
+  if (!countryCode) {
+    errors.countryCode = 'Select your country.'
+  }
+
+  return errors
 }
 
 export function RegisterPage() {
@@ -31,29 +143,32 @@ export function RegisterPage() {
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false)
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false)
   const [phone, setPhone] = useState('')
   const [countryCode, setCountryCode] = useState('TH')
+  const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({})
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const redirectTo = searchParams.get('redirect') || '/cars'
-  const countryProfile = countryDefaults[countryCode] ?? countryDefaults.TH
-
-  function updateCountryCode(value: string) {
-    const nextCountryCode = value.toUpperCase()
-    setCountryCode(nextCountryCode)
-  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setErrorMessage('')
 
-    if (!firstName || !lastName || !email || !password || !countryCode) {
-      setErrorMessage('Complete the required account details.')
-      return
-    }
+    const nextFieldErrors = validateRegisterForm({
+      firstName,
+      lastName,
+      email,
+      password,
+      confirmPassword,
+      phone,
+      countryCode,
+    })
 
-    if (password.length < 8) {
-      setErrorMessage('Password must be at least 8 characters.')
+    setFieldErrors(nextFieldErrors)
+    if (Object.keys(nextFieldErrors).length > 0) {
       return
     }
 
@@ -67,13 +182,22 @@ export function RegisterPage() {
         password,
         phone,
         countryCode,
-        timezone: countryProfile.timezone,
-        preferredCurrency: countryProfile.currency,
+        timezone: getBrowserTimezone(),
       })
       storeAuthSession(session)
       navigate(redirectTo, { replace: true })
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, 'Unable to create your account right now.'))
+      const message = getApiErrorMessage(error, 'Unable to create your account right now.')
+
+      if (message === 'Email is already registered') {
+        setFieldErrors((currentErrors) => ({
+          ...currentErrors,
+          email: 'This email is already registered.',
+        }))
+        return
+      }
+
+      setErrorMessage(message)
     } finally {
       setIsSubmitting(false)
     }
@@ -89,15 +213,27 @@ export function RegisterPage() {
       <div className="mx-auto grid w-full max-w-[680px] gap-4">
         <Card>
           <CardContent>
-            <form className="grid gap-4" onSubmit={handleSubmit}>
+            <form className="grid gap-4" noValidate onSubmit={handleSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
                 <Label>
                   <FieldLabel>First name</FieldLabel>
-                  <Input value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+                  <Input
+                    value={firstName}
+                    className={fieldErrors.firstName ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : undefined}
+                    aria-invalid={Boolean(fieldErrors.firstName)}
+                    onChange={(event) => setFirstName(event.target.value)}
+                  />
+                  <FieldError message={fieldErrors.firstName} />
                 </Label>
                 <Label>
                   <FieldLabel>Last name</FieldLabel>
-                  <Input value={lastName} onChange={(event) => setLastName(event.target.value)} />
+                  <Input
+                    value={lastName}
+                    className={fieldErrors.lastName ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : undefined}
+                    aria-invalid={Boolean(fieldErrors.lastName)}
+                    onChange={(event) => setLastName(event.target.value)}
+                  />
+                  <FieldError message={fieldErrors.lastName} />
                 </Label>
               </div>
 
@@ -108,39 +244,76 @@ export function RegisterPage() {
                     type="email"
                     autoComplete="email"
                     value={email}
+                    className={fieldErrors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : undefined}
+                    aria-invalid={Boolean(fieldErrors.email)}
                     onChange={(event) => setEmail(event.target.value)}
                   />
+                  <FieldError message={fieldErrors.email} />
                 </Label>
                 <Label>
                   <FieldLabel>Password</FieldLabel>
-                  <Input
-                    type="password"
+                  <PasswordField
                     autoComplete="new-password"
+                    isVisible={isPasswordVisible}
                     value={password}
+                    className={fieldErrors.password ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : undefined}
+                    aria-invalid={Boolean(fieldErrors.password)}
+                    onVisibilityChange={() => setIsPasswordVisible((isVisible) => !isVisible)}
                     onChange={(event) => setPassword(event.target.value)}
                   />
+                  <FieldError message={fieldErrors.password} />
                 </Label>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
+                <Label>
+                  <FieldLabel>Confirm password</FieldLabel>
+                  <PasswordField
+                    autoComplete="new-password"
+                    isVisible={isConfirmPasswordVisible}
+                    value={confirmPassword}
+                    className={fieldErrors.confirmPassword ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : undefined}
+                    aria-invalid={Boolean(fieldErrors.confirmPassword)}
+                    onVisibilityChange={() =>
+                      setIsConfirmPasswordVisible((isVisible) => !isVisible)
+                    }
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                  />
+                  <FieldError message={fieldErrors.confirmPassword} />
+                </Label>
                 <Label>
                   <FieldLabel>Phone</FieldLabel>
                   <Input
                     type="tel"
                     autoComplete="tel"
                     value={phone}
+                    className={fieldErrors.phone ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : undefined}
+                    aria-invalid={Boolean(fieldErrors.phone)}
                     onChange={(event) => setPhone(event.target.value)}
                   />
-                </Label>
-                <Label>
-                  <FieldLabel>Country</FieldLabel>
-                  <Input
-                    maxLength={2}
-                    value={countryCode}
-                    onChange={(event) => updateCountryCode(event.target.value)}
-                  />
+                  <FieldError message={fieldErrors.phone} />
                 </Label>
               </div>
+
+              <Label>
+                <FieldLabel>Country</FieldLabel>
+                <Select value={countryCode} onValueChange={setCountryCode}>
+                  <SelectTrigger
+                    className={fieldErrors.countryCode ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : undefined}
+                    aria-invalid={Boolean(fieldErrors.countryCode)}
+                  >
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countryOptions.map((country) => (
+                      <SelectItem key={country.code} value={country.code}>
+                        {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldError message={fieldErrors.countryCode} />
+              </Label>
               {errorMessage ? <Alert title="Account could not be created">{errorMessage}</Alert> : null}
 
               <div className="flex justify-center">
@@ -166,3 +339,4 @@ export function RegisterPage() {
     </PageSection>
   )
 }
+

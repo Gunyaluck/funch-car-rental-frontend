@@ -1,8 +1,9 @@
 import { ArrowRight } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Alert } from '../../components/ui/alert'
 import { Badge } from '../../components/ui/badge'
-import { buttonVariants } from '../../components/ui/button'
+import { buttonVariants } from '../../components/ui/button-variants'
 import { Card, CardContent } from '../../components/ui/card'
 import { DateTimePicker } from '../../components/ui/date-time-picker'
 import { FieldLabel, Label } from '../../components/ui/label'
@@ -37,7 +38,9 @@ export function BookingQuotePanel({
   customerCountryCode,
   onDateChange,
 }: BookingQuotePanelProps) {
-  const minimumPickupAt = new Date(Date.now() + car.minAdvanceBookingHr * 60 * 60 * 1000)
+  const [minimumPickupAt] = useState(
+    () => new Date(Date.now() + car.minAdvanceBookingHr * 60 * 60 * 1000),
+  )
   const canContinue = isBookable && Boolean(quote) && !isQuoteLoading && !quoteErrorMessage
   const displayCurrencyCode = quote?.currencyCode ?? car.currencyCode
   const displayPrice = quote?.grandTotal ?? car.dailyRate
