@@ -28,6 +28,12 @@ type DateTimePickerProps = {
     closeTime: string
     isClosed: boolean
   }>
+  unavailableRanges?: Array<{
+    from: string
+    to: string
+  }>
+  rangeBoundaryValue?: string
+  rangeBoundaryRole?: 'start' | 'end'
 }
 
 function toDate(value: string) {
@@ -102,6 +108,14 @@ function timeSlotToDate(date: Date, time: string) {
 
 function getLocalTimezone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
+function rangesOverlap(startA: Date, endA: Date, startB: Date, endB: Date) {
+  return startA < endB && endA > startB
+}
+
+function isDateWithinRange(date: Date, rangeStart: Date, rangeEnd: Date) {
+  return date >= rangeStart && date < rangeEnd
 }
 
 function getTimeZoneName(timezone: string) {
@@ -218,8 +232,35 @@ function isTimeSlotDisabled(params: {
   minDateTimeExclusive: boolean
   operatingHours: DateTimePickerProps['operatingHours']
   is24Hours: boolean
+  unavailableRanges: DateTimePickerProps['unavailableRanges']
+  rangeBoundaryDate: Date | undefined
+  rangeBoundaryRole?: DateTimePickerProps['rangeBoundaryRole']
 }) {
+  const slotDate = params.selectedDate ? timeSlotToDate(params.selectedDate, params.time) : undefined
+
+  const isUnavailable =
+    slotDate &&
+    params.unavailableRanges?.some((range) => {
+      const rangeStart = toDate(range.from)
+      const rangeEnd = toDate(range.to)
+
+      if (!rangeStart || !rangeEnd) {
+        return false
+      }
+
+      if (!params.rangeBoundaryDate || !params.rangeBoundaryRole) {
+        return isDateWithinRange(slotDate, rangeStart, rangeEnd)
+      }
+
+      if (params.rangeBoundaryRole === 'start') {
+        return rangesOverlap(params.rangeBoundaryDate, slotDate, rangeStart, rangeEnd)
+      }
+
+      return rangesOverlap(slotDate, params.rangeBoundaryDate, rangeStart, rangeEnd)
+    })
+
   return (
+    Boolean(isUnavailable) ||
     isPastTimeSlot(
       params.time,
       params.selectedDate,
@@ -242,6 +283,9 @@ function getFirstAvailableTimeSlot(params: {
   minDateTimeExclusive: boolean
   operatingHours: DateTimePickerProps['operatingHours']
   is24Hours: boolean
+  unavailableRanges: DateTimePickerProps['unavailableRanges']
+  rangeBoundaryDate: Date | undefined
+  rangeBoundaryRole?: DateTimePickerProps['rangeBoundaryRole']
 }) {
   return params.timeSlots.find(
     (time) =>
@@ -252,6 +296,9 @@ function getFirstAvailableTimeSlot(params: {
         minDateTimeExclusive: params.minDateTimeExclusive,
         operatingHours: params.operatingHours,
         is24Hours: params.is24Hours,
+        unavailableRanges: params.unavailableRanges,
+        rangeBoundaryDate: params.rangeBoundaryDate,
+        rangeBoundaryRole: params.rangeBoundaryRole,
       }),
   )
 }
@@ -264,6 +311,9 @@ function isDateDisabled(params: {
   minDateTimeExclusive: boolean
   operatingHours: DateTimePickerProps['operatingHours']
   is24Hours: boolean
+  unavailableRanges: DateTimePickerProps['unavailableRanges']
+  rangeBoundaryDate: Date | undefined
+  rangeBoundaryRole?: DateTimePickerProps['rangeBoundaryRole']
 }) {
   if (params.minimumDate && params.date < params.minimumDate) {
     return true
@@ -276,6 +326,9 @@ function isDateDisabled(params: {
     minDateTimeExclusive: params.minDateTimeExclusive,
     operatingHours: params.operatingHours,
     is24Hours: params.is24Hours,
+    unavailableRanges: params.unavailableRanges,
+    rangeBoundaryDate: params.rangeBoundaryDate,
+    rangeBoundaryRole: params.rangeBoundaryRole,
   })
 }
 
@@ -290,9 +343,13 @@ export function DateTimePicker({
   timezone,
   timezoneLabel,
   operatingHours,
+  unavailableRanges,
+  rangeBoundaryValue,
+  rangeBoundaryRole,
 }: DateTimePickerProps) {
   const [open, setOpen] = useState(false)
   const selectedDate = useMemo(() => toDate(value), [value])
+  const rangeBoundaryDate = useMemo(() => toDate(rangeBoundaryValue ?? ''), [rangeBoundaryValue])
   const timeValue = selectedDate ? format(selectedDate, 'HH:mm') : '09:00'
   const displayValue = selectedDate ? format(selectedDate, 'dd/MM/yy HH:mm') : placeholder
   const minimumDate = minDateTime ? startOfDay(minDateTime) : undefined
@@ -326,6 +383,9 @@ export function DateTimePicker({
         minDateTimeExclusive,
         operatingHours,
         is24Hours,
+        unavailableRanges,
+        rangeBoundaryDate,
+        rangeBoundaryRole,
       })
     ) {
       const firstAvailableSlot = getFirstAvailableTimeSlot({
@@ -335,6 +395,9 @@ export function DateTimePicker({
         minDateTimeExclusive,
         operatingHours,
         is24Hours,
+        unavailableRanges,
+        rangeBoundaryDate,
+        rangeBoundaryRole,
       })
 
       if (!firstAvailableSlot) {
@@ -361,6 +424,9 @@ export function DateTimePicker({
         minDateTimeExclusive,
         operatingHours,
         is24Hours,
+        unavailableRanges,
+        rangeBoundaryDate,
+        rangeBoundaryRole,
       })
     ) {
       const firstAvailableSlot = getFirstAvailableTimeSlot({
@@ -370,6 +436,9 @@ export function DateTimePicker({
         minDateTimeExclusive,
         operatingHours,
         is24Hours,
+        unavailableRanges,
+        rangeBoundaryDate,
+        rangeBoundaryRole,
       })
 
       if (firstAvailableSlot) {
@@ -435,6 +504,9 @@ export function DateTimePicker({
                 minDateTimeExclusive,
                 operatingHours,
                 is24Hours,
+                unavailableRanges,
+                rangeBoundaryDate,
+                rangeBoundaryRole,
               })
             }
             onSelect={updateDate}
@@ -457,6 +529,9 @@ export function DateTimePicker({
                       minDateTimeExclusive,
                       operatingHours,
                       is24Hours,
+                      unavailableRanges,
+                      rangeBoundaryDate,
+                      rangeBoundaryRole,
                     })}
                     className="data-[disabled]:cursor-not-allowed data-[disabled]:text-stone-500/35"
                   >

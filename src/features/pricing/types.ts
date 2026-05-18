@@ -19,6 +19,8 @@ export type PricingQuote = {
   returnAt: string
   timezone: string
   currencyCode: string
+  hourlyRate: number
+  dailyRate: number
   pricingMode: 'HOURLY' | 'DAILY' | 'MIXED'
   totalDays: number
   totalHours: number

@@ -60,7 +60,7 @@ export type LocationHour = {
 
 export type CarDetailItem = Omit<
   CarListItem,
-  'coverImage' | 'isAvailable' | 'highlight' | 'features' | 'unavailableDates'
+  'coverImage' | 'isAvailable' | 'highlight' | 'features'
 > & {
   description: string | null
   is24Hours: boolean
