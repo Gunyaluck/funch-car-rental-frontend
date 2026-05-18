@@ -28,11 +28,12 @@ export function CarsPage() {
     () => filtersFromSearchParams(searchParams),
     [searchParams],
   )
-  const [draftFilters, setDraftFilters] = useState<CarFilters>(filters)
-
-  useEffect(() => {
-    setDraftFilters(filters)
-  }, [filters])
+  const filtersKey = searchParams.toString()
+  const [draftState, setDraftState] = useState<{ key: string; filters: CarFilters }>(() => ({
+    key: filtersKey,
+    filters,
+  }))
+  const draftFilters = draftState.key === filtersKey ? draftState.filters : filters
 
   const pendingFilterCount = Object.values(draftFilters).filter(Boolean).length
   const filterOptions = useMemo(() => optionsFromCars(allCars), [allCars])
@@ -87,16 +88,23 @@ export function CarsPage() {
 
   function updateDraftFilter(name: keyof CarFilters, value: string) {
     setFilterErrorMessage('')
-    setDraftFilters((currentFilters) => ({
-      ...currentFilters,
-      [name]: value === EMPTY_SELECT_VALUE ? '' : value,
-      ...(name === 'pickupAt' &&
-      currentFilters.returnAt &&
-      value &&
-      new Date(currentFilters.returnAt) <= new Date(value)
-        ? { returnAt: '' }
-        : {}),
-    }))
+    setDraftState((currentState) => {
+      const currentFilters = currentState.key === filtersKey ? currentState.filters : filters
+
+      return {
+        key: filtersKey,
+        filters: {
+          ...currentFilters,
+          [name]: value === EMPTY_SELECT_VALUE ? '' : value,
+          ...(name === 'pickupAt' &&
+          currentFilters.returnAt &&
+          value &&
+          new Date(currentFilters.returnAt) <= new Date(value)
+            ? { returnAt: '' }
+            : {}),
+        },
+      }
+    })
   }
 
   function applyFilters() {
@@ -140,7 +148,7 @@ export function CarsPage() {
 
   function resetFilters() {
     setFilterErrorMessage('')
-    setDraftFilters(defaultCarFilters)
+    setDraftState({ key: '', filters: defaultCarFilters })
     setSearchParams({})
   }
 

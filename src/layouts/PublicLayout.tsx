@@ -1,6 +1,11 @@
-import { CarFront, UserRound } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
-import { buttonVariants } from '../components/ui/button'
+import { BookOpen, CarFront, LogOut, Settings, UserRound } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Button } from '../components/ui/button'
+import { buttonVariants } from '../components/ui/button-variants'
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover'
+import { clearAuthSession, getStoredAuthSession, subscribeToAuthSessionChange } from '../features/auth/storage'
+import type { AuthSession } from '../features/auth/types'
 import { cn } from '../lib/utils'
 
 const publicLinks = [
@@ -19,6 +24,31 @@ function getNavClassName({ isActive }: { isActive: boolean }) {
 }
 
 export function PublicLayout() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [session, setSession] = useState<AuthSession | null>(() => getStoredAuthSession())
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+
+  useEffect(() => {
+    return subscribeToAuthSessionChange(() => setSession(getStoredAuthSession()))
+  }, [])
+
+  function handleSignOut() {
+    clearAuthSession()
+    setSession(null)
+    setIsProfileMenuOpen(false)
+
+    if (
+      location.pathname === '/checkout' ||
+      location.pathname === '/my-bookings' ||
+      location.pathname === '/profile'
+    ) {
+      navigate('/login', { replace: true })
+    }
+  }
+
+  const userName = session?.user.firstName ?? session?.user.email
+
   return (
     <div className="min-h-screen text-forest-900">
       <header className="sticky top-4 z-20 px-4">
@@ -46,21 +76,66 @@ export function PublicLayout() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
-            <NavLink
-              to="/login"
-              className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'max-md:hidden')}
-              aria-label="Sign in"
-            >
-              <UserRound className="size-4" />
-            </NavLink>
-            <NavLink
-              to="/register"
-              className={cn(buttonVariants(), 'max-sm:hidden')}
-            >
-              Create Account
-            </NavLink>
-          </div>
+          {session ? (
+            <div className="flex items-center gap-2">
+              <Popover open={isProfileMenuOpen} onOpenChange={setIsProfileMenuOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" className="max-w-[190px] px-3 max-sm:size-11 max-sm:p-0">
+                    <UserRound className="size-4 shrink-0" />
+                    <span className="truncate max-sm:hidden">{userName}</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-64 rounded-2xl p-2">
+                  <div className="grid gap-1">
+                    <div className="px-3 py-2">
+                      <p className="m-0 truncate text-sm font-semibold text-forest-900">{userName}</p>
+                      <p className="m-0 truncate text-xs text-stone-500">{session.user.email}</p>
+                    </div>
+                    <NavLink
+                      to="/profile"
+                      className={cn(buttonVariants({ variant: 'ghost' }), 'justify-start')}
+                      onClick={() => setIsProfileMenuOpen(false)}
+                    >
+                      <Settings className="size-4" />
+                      Profile
+                    </NavLink>
+                    <NavLink
+                      to="/my-bookings"
+                      className={cn(buttonVariants({ variant: 'ghost' }), 'justify-start')}
+                      onClick={() => setIsProfileMenuOpen(false)}
+                    >
+                      <BookOpen className="size-4" />
+                      My Bookings
+                    </NavLink>
+                    <button
+                      type="button"
+                      className={cn(buttonVariants({ variant: 'ghost' }), 'justify-start text-red-700 hover:text-red-800')}
+                      onClick={handleSignOut}
+                    >
+                      <LogOut className="size-4" />
+                      Sign out
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <NavLink
+                to="/login"
+                className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'max-md:hidden')}
+                aria-label="Sign in"
+              >
+                <UserRound className="size-4" />
+              </NavLink>
+              <NavLink
+                to="/register"
+                className={cn(buttonVariants(), 'max-sm:hidden')}
+              >
+                Create Account
+              </NavLink>
+            </div>
+          )}
         </div>
       </header>
 

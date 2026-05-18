@@ -2,7 +2,7 @@ import { ArrowRight, CalendarDays, CarFront, ChevronLeft, ChevronRight, Gauge, S
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Button } from '../components/ui/button'
-import { buttonVariants } from '../components/ui/button'
+import { buttonVariants } from '../components/ui/button-variants'
 import { Card, CardContent } from '../components/ui/card'
 import { listCars } from '../features/cars/api'
 import { defaultCarFilters } from '../features/cars/constants'

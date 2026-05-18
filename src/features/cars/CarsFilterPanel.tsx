@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Alert } from "../../components/ui/alert";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
@@ -53,8 +53,8 @@ export function CarsFilterPanel({
   onReset,
   onSubmit,
 }: CarsFilterPanelProps) {
-  const minimumPickupAt = new Date(
-    Date.now() + minimumAdvanceBookingHours * 60 * 60 * 1000,
+  const [minimumPickupAt] = useState(
+    () => new Date(Date.now() + minimumAdvanceBookingHours * 60 * 60 * 1000),
   );
 
   return (

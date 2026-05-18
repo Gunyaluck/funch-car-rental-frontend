@@ -13,7 +13,9 @@ import { CheckoutPage } from '../pages/CheckoutPage'
 import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
 import { MyBookingsPage } from '../pages/MyBookingsPage'
+import { ProfilePage } from '../pages/ProfilePage'
 import { RegisterPage } from '../pages/RegisterPage'
+import { RequireAuth } from '../routes/RequireAuth'
 
 export const router = createBrowserRouter([
   {
@@ -25,8 +27,30 @@ export const router = createBrowserRouter([
       { path: 'cars/:carId', element: <CarDetailPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
-      { path: 'checkout', element: <CheckoutPage /> },
-      { path: 'my-bookings', element: <MyBookingsPage /> },
+      {
+        path: 'profile',
+        element: (
+          <RequireAuth>
+            <ProfilePage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'checkout',
+        element: (
+          <RequireAuth>
+            <CheckoutPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'my-bookings',
+        element: (
+          <RequireAuth>
+            <MyBookingsPage />
+          </RequireAuth>
+        ),
+      },
     ],
   },
   {
