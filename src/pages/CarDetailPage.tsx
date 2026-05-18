@@ -86,8 +86,8 @@ export function CarDetailPage() {
     quote && carId
       ? buildCheckoutLink({
           carId,
-          pickupAt: quote.pickupAt,
-          returnAt: quote.returnAt,
+          pickupAt,
+          returnAt,
           optionIds: selectedOptionIds,
         })
       : '/checkout'

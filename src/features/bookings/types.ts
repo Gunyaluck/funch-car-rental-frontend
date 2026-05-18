@@ -75,6 +75,7 @@ export type DepositCheckout = {
   currencyCode: string
   expiresAt: string | null
   mode: string
+  url: string | null
   message: string
 }
 

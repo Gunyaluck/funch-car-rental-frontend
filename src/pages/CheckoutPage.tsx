@@ -90,6 +90,7 @@ export function CheckoutPage() {
     [searchParams],
   )
   const session = getStoredAuthSession()
+  const sessionCountryCode = session?.user.countryCode ?? 'TH'
   const [car, setCar] = useState<CarDetailItem | null>(null)
   const [quote, setQuote] = useState<PricingQuote | null>(null)
   const [booking, setBooking] = useState<BookingItem | null>(null)
@@ -99,7 +100,7 @@ export function CheckoutPage() {
   const [contactFirstName, setContactFirstName] = useState(session?.user.firstName ?? '')
   const [contactLastName, setContactLastName] = useState(session?.user.lastName ?? '')
   const [contactPhone, setContactPhone] = useState(session?.user.phone ?? '')
-  const [contactCountryCode, setContactCountryCode] = useState(session?.user.countryCode ?? 'TH')
+  const [contactCountryCode, setContactCountryCode] = useState(sessionCountryCode)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const hasCheckoutDetails = Boolean(carId && pickupAt && returnAt)
@@ -134,7 +135,7 @@ export function CheckoutPage() {
         setContactFirstName(profile.firstName ?? '')
         setContactLastName(profile.lastName ?? '')
         setContactPhone(profile.phone ?? '')
-        setContactCountryCode(profile.countryCode ?? session?.user.countryCode ?? 'TH')
+        setContactCountryCode(profile.countryCode ?? sessionCountryCode)
       } catch (error) {
         if (isCurrent) {
           setErrorMessage(getApiErrorMessage(error, 'Unable to prepare checkout.'))
@@ -151,7 +152,7 @@ export function CheckoutPage() {
     return () => {
       isCurrent = false
     }
-  }, [carId, hasCheckoutDetails, optionIds, pickupAt, returnAt])
+  }, [carId, hasCheckoutDetails, optionIds, pickupAt, returnAt, sessionCountryCode])
 
   async function handleSubmit() {
     if (!quote) {
@@ -198,9 +199,9 @@ export function CheckoutPage() {
       setContactCountryCode(updatedProfile.countryCode ?? contactCountryCode)
 
       const nextBooking = await createBooking({
-        carId: quote.carId,
-        pickupAt: quote.pickupAt,
-        returnAt: quote.returnAt,
+        carId,
+        pickupAt,
+        returnAt,
         optionIds,
       })
       setBooking(nextBooking)
@@ -261,7 +262,7 @@ export function CheckoutPage() {
                 <Badge className="mx-auto">Deposit required</Badge>
                 <h2 className="m-0 text-xl font-semibold">Booking request submitted</h2>
                 <p className="m-0 text-stone-500">
-                  Pay the deposit from My Bookings. The branch will call to confirm your reservation after payment.
+                  Pay the deposit from My Bookings. Your booking will move to awaiting confirmation after payment.
                 </p>
                 <div className="flex justify-center">
                   <Link to="/my-bookings" className="font-semibold text-forest-800">
@@ -394,7 +395,7 @@ export function CheckoutPage() {
                     <strong>{formatMoney(quote.currencyCode, quote.grandTotal)}</strong>
                   </div>
                   <p className="m-0 text-sm text-stone-500">
-                    Deposit is charged first. Final confirmation happens after the branch reviews and calls the customer.
+                    Deposit is charged first. Final confirmation happens after the branch reviews your booking.
                   </p>
                 </div>
               ) : (

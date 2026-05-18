@@ -32,13 +32,6 @@ export async function startDepositCheckout(bookingId: string) {
   return response.data.data
 }
 
-export async function confirmDepositPayment(bookingId: string) {
-  const response = await api.post<ApiResponse<BookingItem>>(
-    `/bookings/${bookingId}/deposit/mock-confirm`,
-  )
-  return response.data.data
-}
-
 export async function cancelBooking(bookingId: string) {
   const response = await api.post<ApiResponse<BookingItem>>(`/bookings/${bookingId}/cancel`)
   return response.data.data

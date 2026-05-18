@@ -1,7 +1,7 @@
 import { isAxiosError } from 'axios'
 import { ArrowRight, CalendarPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { PageSection } from '../components/PageSection'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
@@ -10,8 +10,8 @@ import { buttonVariants } from '../components/ui/button-variants'
 import { Card, CardContent } from '../components/ui/card'
 import {
   cancelBooking,
-  confirmDepositPayment,
   listMyBookings,
+  startDepositCheckout,
 } from '../features/bookings/api'
 import type { BookingItem, BookingStatus, PaymentStatus } from '../features/bookings/types'
 import { formatMoney } from '../features/cars/utils/car-detail-utils'
@@ -54,7 +54,7 @@ function getBookingHeadline(booking: BookingItem) {
   }
 
   if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PAID') {
-    return 'Awaiting branch confirmation'
+    return 'Awaiting confirmation'
   }
 
   if (booking.status === 'APPROVED') {
@@ -78,11 +78,11 @@ function getBookingHeadline(booking: BookingItem) {
 
 function getBookingMessage(booking: BookingItem) {
   if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PENDING') {
-    return 'Pay the deposit to move this booking into the branch confirmation queue.'
+    return 'Pay the deposit to move this booking into the confirmation queue.'
   }
 
   if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PAID') {
-    return 'Deposit received. The branch will call to confirm the reservation.'
+    return 'Your booking is awaiting confirmation.'
   }
 
   if (booking.status === 'APPROVED') {
@@ -105,7 +105,7 @@ function getBookingMessage(booking: BookingItem) {
     return 'The deposit was not paid before the payment window closed.'
   }
 
-  return 'Track branch confirmation, payment progress, and any admin notes here.'
+  return 'Track confirmation, payment progress, and any admin notes here.'
 }
 
 function canPayDeposit(booking: BookingItem) {
@@ -117,10 +117,13 @@ function canCancelBooking(booking: BookingItem) {
 }
 
 export function MyBookingsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [bookings, setBookings] = useState<BookingItem[]>([])
   const [errorMessage, setErrorMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [actionBookingId, setActionBookingId] = useState('')
+  const depositResult = searchParams.get('deposit')
+  const depositBookingId = searchParams.get('bookingId')
 
   useEffect(() => {
     let isCurrent = true
@@ -151,19 +154,38 @@ export function MyBookingsPage() {
     return () => {
       isCurrent = false
     }
-  }, [])
+  }, [depositBookingId, depositResult])
+
+  useEffect(() => {
+    if (!depositResult) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const nextParams = new URLSearchParams(searchParams)
+      nextParams.delete('deposit')
+      nextParams.delete('bookingId')
+      setSearchParams(nextParams, { replace: true })
+    }, 12000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [depositResult, searchParams, setSearchParams])
 
   async function handlePayDeposit(bookingId: string) {
     setActionBookingId(bookingId)
     setErrorMessage('')
 
     try {
-      const updatedBooking = await confirmDepositPayment(bookingId)
-      setBookings((currentBookings) =>
-        currentBookings.map((booking) => (booking.id === bookingId ? updatedBooking : booking)),
-      )
+      const result = await startDepositCheckout(bookingId)
+
+      if (result.checkout.url) {
+        window.location.assign(result.checkout.url)
+        return
+      }
+
+      setErrorMessage('Stripe checkout URL is not available yet.')
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, 'Unable to confirm the deposit payment.'))
+      setErrorMessage(getApiErrorMessage(error, 'Unable to start the deposit checkout.'))
     } finally {
       setActionBookingId('')
     }
@@ -188,11 +210,21 @@ export function MyBookingsPage() {
   return (
     <PageSection
       title="My bookings"
-      description="Track deposit payment, branch confirmation, refund handling, and pickup details."
+      description="Track deposit payment, confirmation, refund handling, and pickup details."
     >
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="grid gap-4">
           {errorMessage ? <Alert title="Bookings unavailable">{errorMessage}</Alert> : null}
+          {depositResult === 'success' ? (
+            <Alert title="Deposit received">
+              Your booking is awaiting confirmation.
+            </Alert>
+          ) : null}
+          {depositResult === 'cancelled' ? (
+            <Alert title="Deposit not completed">
+              Stripe Checkout was cancelled before payment finished. You can try again from this page.
+            </Alert>
+          ) : null}
 
           {isLoading ? (
             <Card>
@@ -277,7 +309,13 @@ export function MyBookingsPage() {
                   </div>
 
                   {booking.depositDueAt ? (
-                    <p className="m-0 text-sm text-stone-500">
+                    <p
+                      className={
+                        booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PENDING'
+                          ? 'm-0 text-sm font-medium text-red-600'
+                          : 'm-0 text-sm text-stone-500'
+                      }
+                    >
                       Deposit due by {formatDateTime(booking.depositDueAt, booking.pickupTimezone)}
                     </p>
                   ) : null}
@@ -337,7 +375,7 @@ export function MyBookingsPage() {
                 <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
                   <Badge variant="muted" className="w-fit">Deposit required</Badge>
                   <p className="m-0 text-sm text-stone-500">
-                    Pay the deposit first so the booking enters the branch review queue.
+                    Pay the deposit first so the booking enters the confirmation queue.
                   </p>
                 </div>
                 <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
