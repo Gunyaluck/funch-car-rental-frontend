@@ -81,3 +81,42 @@ export type CarFilters = {
   pickupAt: string
   returnAt: string
 }
+
+export type CreateCarPayload = {
+  name: string
+  brand: string
+  model: string
+  year: number
+  category: CarCategory
+  countryCode: string
+  city: string
+  timezone: string
+  currencyCode: string
+  hourlyRate: number
+  dailyRate: number
+  seats: number
+  transmission: Transmission
+  fuelType: string
+  description?: string
+  status: CarListItem['status']
+  is24Hours: boolean
+  minAdvanceBookingHr: number
+  maxBookingDays: number
+  bufferHours: number
+  images: Array<{
+    url: string
+    sortOrder: number
+    isCover: boolean
+  }>
+  options: Array<{
+    name: string
+    pricePerDay: number
+    description?: string
+  }>
+  locationHours: Array<{
+    dayOfWeek: number
+    openTime: string
+    closeTime: string
+    isClosed: boolean
+  }>
+}

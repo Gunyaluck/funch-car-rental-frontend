@@ -2,6 +2,8 @@ import { createBrowserRouter } from 'react-router-dom'
 import { AdminLayout } from '../layouts/AdminLayout'
 import { PublicLayout } from '../layouts/PublicLayout'
 import { AdminCarsPage } from '../pages/admin/AdminCarsPage'
+import { AdminCreateCarPage } from '../pages/admin/AdminCreateCarPage'
+import { AdminEditCarPage } from '../pages/admin/AdminEditCarPage'
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
 import { AdminLoginPage } from '../pages/admin/AdminLoginPage'
 import { AdminMembersPage } from '../pages/admin/AdminMembersPage'
@@ -68,6 +70,8 @@ export const router = createBrowserRouter([
       { index: true, element: <AdminDashboardPage /> },
       { path: 'bookings', element: <AdminBookingsPage /> },
       { path: 'cars', element: <AdminCarsPage /> },
+      { path: 'cars/create', element: <AdminCreateCarPage /> },
+      { path: 'cars/:carId/edit', element: <AdminEditCarPage /> },
       { path: 'members', element: <AdminMembersPage /> },
       { path: 'reports', element: <AdminReportsPage /> },
     ],
