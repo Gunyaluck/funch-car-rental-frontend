@@ -6,7 +6,6 @@ const adminLinks = [
   { to: '/admin/cars', label: 'Cars' },
   { to: '/admin/members', label: 'Members' },
   { to: '/admin', label: 'Dashboard', end: true },
-  { to: '/admin/reports', label: 'Reports' },
 ]
 
 function getAdminClassName({ isActive }: { isActive: boolean }) {
@@ -28,7 +27,7 @@ export function AdminLayout() {
 
   function handleLogout() {
     clearAuthSession()
-    navigate('/admin/login', { replace: true })
+    navigate('/login', { replace: true })
   }
 
   return (
@@ -42,7 +41,7 @@ export function AdminLayout() {
       >
         <div className="mb-7 grid gap-2">
           <h1 className="m-0 text-[1.25rem] uppercase tracking-[0.08em]">Funch Admin</h1>
-          <p className="m-0 text-sand-50/65">Approval, fleet, and reporting workspace.</p>
+          <p className="m-0 text-sand-50/65">Approval, fleet, members, and analytics workspace.</p>
         </div>
 
         <nav className="grid gap-2.5" aria-label="Admin navigation">

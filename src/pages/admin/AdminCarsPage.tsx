@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select'
-import { getCarById, listCars } from '../../features/cars/api'
+import { getCarById, listCars, updateAdminCarStatus } from '../../features/cars/api'
 import { defaultCarFilters } from '../../features/cars/constants'
 import type { CarCategory, CarDetailItem, CarListItem } from '../../features/cars/types'
 import { formatMoney } from '../../features/cars/utils/car-detail-utils'
@@ -78,6 +78,38 @@ export function AdminCarsPage() {
   const [selectedCar, setSelectedCar] = useState<CarDetailItem | null>(null)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [detailErrorMessage, setDetailErrorMessage] = useState('')
+  const [isStatusUpdating, setIsStatusUpdating] = useState(false)
+
+  async function handleStatusChange(nextStatus: CarListItem['status']) {
+    if (!selectedCar) {
+      return
+    }
+
+    setIsStatusUpdating(true)
+    setDetailErrorMessage('')
+
+    try {
+      const updatedCar = await updateAdminCarStatus(selectedCar.id, nextStatus)
+
+      setSelectedCar(updatedCar)
+      setCars((currentCars) =>
+        currentCars.map((car) =>
+          car.id === updatedCar.id
+            ? {
+                ...car,
+                status: updatedCar.status,
+                coverImage: updatedCar.images.find((image) => image.isCover)?.url ?? updatedCar.images[0]?.url ?? car.coverImage ?? null,
+                isAvailable: updatedCar.status === 'AVAILABLE',
+              }
+            : car,
+        ),
+      )
+    } catch (error) {
+      setDetailErrorMessage(getApiErrorMessage(error, 'Unable to update the car status right now.'))
+    } finally {
+      setIsStatusUpdating(false)
+    }
+  }
 
   useEffect(() => {
     let isCurrent = true
@@ -426,7 +458,7 @@ export function AdminCarsPage() {
           <div className="grid gap-4 self-start xl:sticky xl:top-6">
             <div>
               <h2 className="m-0 text-xl font-semibold">Car profile</h2>
-              <p className="m-0 text-stone-500">Inspect the selected car before wiring edit actions.</p>
+              <p className="m-0 text-stone-500">Inspect, edit, and manage availability for the selected car.</p>
             </div>
 
             {isDetailLoading ? (
@@ -540,12 +572,44 @@ export function AdminCarsPage() {
                     </div>
 
                     <div className="flex justify-end">
-                      <Link
-                        to={`/admin/cars/${selectedCar.id}/edit`}
-                        className={buttonVariants({ variant: 'outline' })}
-                      >
-                        Edit car
-                      </Link>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {selectedCar.status !== 'AVAILABLE' ? (
+                          <button
+                            type="button"
+                            className={buttonVariants({ variant: 'outline' })}
+                            disabled={isStatusUpdating}
+                            onClick={() => void handleStatusChange('AVAILABLE')}
+                          >
+                            {isStatusUpdating ? 'Updating...' : 'Restore availability'}
+                          </button>
+                        ) : null}
+                        {selectedCar.status !== 'MAINTENANCE' ? (
+                          <button
+                            type="button"
+                            className={buttonVariants({ variant: 'outline' })}
+                            disabled={isStatusUpdating}
+                            onClick={() => void handleStatusChange('MAINTENANCE')}
+                          >
+                            {isStatusUpdating ? 'Updating...' : 'Mark maintenance'}
+                          </button>
+                        ) : null}
+                        {selectedCar.status !== 'RETIRED' ? (
+                          <button
+                            type="button"
+                            className={buttonVariants({ variant: 'outline' })}
+                            disabled={isStatusUpdating}
+                            onClick={() => void handleStatusChange('RETIRED')}
+                          >
+                            {isStatusUpdating ? 'Updating...' : 'Retire car'}
+                          </button>
+                        ) : null}
+                        <Link
+                          to={`/admin/cars/${selectedCar.id}/edit`}
+                          className={buttonVariants({ variant: 'outline' })}
+                        >
+                          Edit car
+                        </Link>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

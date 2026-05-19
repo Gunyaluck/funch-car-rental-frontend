@@ -65,3 +65,14 @@ export async function updateAdminCar(
   const response = await api.put<ApiResponse<CarDetailItem>>(`/cars/admin/${carId}`, payload)
   return response.data.data
 }
+
+export async function updateAdminCarStatus(
+  carId: string,
+  status: CarListItem['status'],
+): Promise<CarDetailItem> {
+  const response = await api.patch<ApiResponse<CarDetailItem>>(`/cars/admin/${carId}/status`, {
+    status,
+  })
+
+  return response.data.data
+}

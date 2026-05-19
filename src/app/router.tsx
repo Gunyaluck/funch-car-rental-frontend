@@ -8,7 +8,6 @@ import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
 import { AdminLoginPage } from '../pages/admin/AdminLoginPage'
 import { AdminMembersPage } from '../pages/admin/AdminMembersPage'
 import { AdminBookingsPage } from '../pages/admin/AdminBookingsPage'
-import { AdminReportsPage } from '../pages/admin/AdminReportsPage'
 import { CarDetailPage } from '../pages/CarDetailPage'
 import { CarsPage } from '../pages/CarsPage'
 import { CheckoutPage } from '../pages/CheckoutPage'
@@ -73,7 +72,6 @@ export const router = createBrowserRouter([
       { path: 'cars/create', element: <AdminCreateCarPage /> },
       { path: 'cars/:carId/edit', element: <AdminEditCarPage /> },
       { path: 'members', element: <AdminMembersPage /> },
-      { path: 'reports', element: <AdminReportsPage /> },
     ],
   },
 ])
