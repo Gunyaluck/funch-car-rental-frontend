@@ -59,7 +59,11 @@ export const router = createBrowserRouter([
   },
   {
     path: '/admin',
-    element: <AdminLayout />,
+    element: (
+      <RequireAuth role="ADMIN">
+        <AdminLayout />
+      </RequireAuth>
+    ),
     children: [
       { index: true, element: <AdminDashboardPage /> },
       { path: 'bookings', element: <AdminBookingsPage /> },

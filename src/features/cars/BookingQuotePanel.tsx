@@ -117,6 +117,9 @@ export function BookingQuotePanel({
                 timezone={car.timezone}
                 timezoneLabel={`${car.city} time`}
                 operatingHours={car.locationHours}
+                unavailableRanges={car.unavailableDates}
+                rangeBoundaryValue={returnAt}
+                rangeBoundaryRole="end"
               />
               <span className="text-[0.82rem] text-stone-500">
                 Earliest pickup: {car.minAdvanceBookingHr} hours from now
@@ -135,6 +138,9 @@ export function BookingQuotePanel({
                 timezone={car.timezone}
                 timezoneLabel={`${car.city} time`}
                 operatingHours={car.locationHours}
+                unavailableRanges={car.unavailableDates}
+                rangeBoundaryValue={pickupAt}
+                rangeBoundaryRole="start"
               />
             </Label>
           </div>

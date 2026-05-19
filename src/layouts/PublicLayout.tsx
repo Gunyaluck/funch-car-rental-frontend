@@ -1,4 +1,4 @@
-import { BookOpen, CarFront, LogOut, Settings, UserRound } from 'lucide-react'
+import { BookOpen, CarFront, LayoutDashboard, LogOut, Settings, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/button'
@@ -41,13 +41,15 @@ export function PublicLayout() {
     if (
       location.pathname === '/checkout' ||
       location.pathname === '/my-bookings' ||
-      location.pathname === '/profile'
+      location.pathname === '/profile' ||
+      location.pathname.startsWith('/admin')
     ) {
       navigate('/login', { replace: true })
     }
   }
 
   const userName = session?.user.firstName ?? session?.user.email
+  const isAdmin = session?.user.role === 'ADMIN'
 
   return (
     <div className="min-h-screen text-forest-900">
@@ -107,6 +109,16 @@ export function PublicLayout() {
                       <BookOpen className="size-4" />
                       My Bookings
                     </NavLink>
+                    {isAdmin ? (
+                      <NavLink
+                        to="/admin"
+                        className={cn(buttonVariants({ variant: 'ghost' }), 'justify-start')}
+                        onClick={() => setIsProfileMenuOpen(false)}
+                      >
+                        <LayoutDashboard className="size-4" />
+                        Admin Panel
+                      </NavLink>
+                    ) : null}
                     <button
                       type="button"
                       className={cn(buttonVariants({ variant: 'ghost' }), 'justify-start text-red-700 hover:text-red-800')}
@@ -146,9 +158,6 @@ export function PublicLayout() {
       <footer className="px-0 py-8 pb-12 text-stone-500">
         <div className="mx-auto flex w-[min(1200px,calc(100%-32px))] flex-wrap items-center justify-between gap-3 border-t border-black/10 pt-6 text-sm max-md:w-[min(100%,calc(100%-24px))]">
           <span>Funch Drive rental booking platform</span>
-          <NavLink to="/admin" className="font-semibold text-forest-900">
-            Admin
-          </NavLink>
         </div>
       </footer>
     </div>

@@ -16,6 +16,10 @@ function getMinimumPickupTime() {
   return Date.now() + minimumAdvanceBookingHours * 60 * 60 * 1000
 }
 
+function isBookableCar(car: CarListItem) {
+  return car.status === 'AVAILABLE' && car.isAvailable !== false
+}
+
 export function CarsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [cars, setCars] = useState<CarListItem[]>([])
@@ -56,10 +60,10 @@ export function CarsPage() {
           return
         }
 
-        setCars(filteredResult.data)
+        setCars(filteredResult.data.filter(isBookableCar))
 
         if (allResult) {
-          setAllCars(allResult.data)
+          setAllCars(allResult.data.filter(isBookableCar))
         }
       } catch (error) {
         if (!isCurrent) {
