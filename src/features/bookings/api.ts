@@ -63,3 +63,11 @@ export async function markBookingRefunded(
   )
   return response.data.data
 }
+
+export async function saveBookingAdminNote(
+  bookingId: string,
+  payload: BookingActionPayload = {},
+) {
+  const response = await api.post<ApiResponse<BookingItem>>(`/bookings/${bookingId}/note`, payload)
+  return response.data.data
+}

@@ -1,10 +1,10 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 const adminLinks = [
-  { to: '/admin', label: 'Dashboard', end: true },
   { to: '/admin/bookings', label: 'Bookings' },
   { to: '/admin/cars', label: 'Cars' },
   { to: '/admin/members', label: 'Members' },
+  { to: '/admin', label: 'Dashboard', end: true },
   { to: '/admin/reports', label: 'Reports' },
 ]
 
