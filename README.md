@@ -1,73 +1,127 @@
-# React + TypeScript + Vite
+# Funch Car Rental Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend for the Funch car rental platform, built with React, TypeScript, and Vite.
 
-Currently, two official plugins are available:
+The app covers:
+- public car browsing and booking flow
+- checkout and deposit handoff
+- customer booking management
+- admin booking and dashboard views
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Links
 
-## React Compiler
+- Frontend (Vercel): https://funch-car-rental-frontend.vercel.app
+- Backend repository: https://github.com/Gunyaluck/funch-car-rental-backend.git
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech Stack
 
-## Expanding the ESLint configuration
+- React 19
+- TypeScript
+- Vite
+- React Router
+- Tailwind CSS
+- Axios
+- Supabase Storage
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Prerequisites
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Node.js 18+ recommended
+- npm
+- running backend API
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Environment Variables
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Create a `.env` file in the project root.
+
+```env
+VITE_API_BASE_URL=http://localhost:4000
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_STORAGE_BUCKET=car-images
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Notes:
+- `VITE_API_BASE_URL` should point to the backend server.
+- `VITE_SUPABASE_*` values are used for image storage and retrieval.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Installation
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+```
+
+## Run Locally
+
+```bash
+npm run dev
+```
+
+Default Vite local URL:
+
+```text
+http://localhost:5173
+```
+
+## Available Scripts
+
+```bash
+npm run dev
+```
+
+Starts the local development server.
+
+```bash
+npm run build
+```
+
+Builds the production bundle.
+
+```bash
+npm run preview
+```
+
+Serves the production build locally for preview.
+
+```bash
+npm run lint
+```
+
+Runs ESLint.
+
+## Project Structure
+
+```text
+src/
+  app/              app bootstrap and routing
+  components/       shared UI building blocks
+  features/         feature-based modules
+  layouts/          public and admin layouts
+  pages/            route-level pages
+  lib/              shared utilities
+```
+
+## Backend Integration
+
+This frontend expects the backend to provide:
+- authentication
+- car listing and detail APIs
+- booking and checkout APIs
+- admin booking and reporting APIs
+
+If you run the backend locally, update `VITE_API_BASE_URL` to match its port and host.
+
+## Deployment
+
+This frontend is deployed on Vercel:
+
+- https://funch-car-rental-frontend.vercel.app
+
+For a new deployment, make sure the same environment variables are configured in Vercel.
+
+## Build Status
+
+The project builds successfully with:
+
+```bash
+npm run build
 ```
