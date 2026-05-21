@@ -10,6 +10,14 @@ import { buttonVariants } from '../components/ui/button-variants'
 import { Card, CardContent } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { FieldLabel, Label } from '../components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select'
+import { register } from '../features/auth/api'
 import { getStoredAuthSession, storeAuthSession } from '../features/auth/storage'
 import { createBooking } from '../features/bookings/api'
 import type { BookingItem } from '../features/bookings/types'
@@ -19,10 +27,15 @@ import { formatMoney } from '../features/cars/utils/car-detail-utils'
 import { quotePricing } from '../features/pricing/api'
 import type { PricingQuote } from '../features/pricing/types'
 import { getMyProfile, updateMyProfile } from '../features/users/api'
+import { countryOptions } from '../lib/country-options'
 
 type ContactFieldErrors = Partial<Record<'firstName' | 'lastName' | 'phone', string>>
+type RegisterFieldErrors = Partial<
+  Record<'email' | 'password' | 'confirmPassword' | 'countryCode', string>
+>
 
 const phonePattern = /^[+\d\s()-]{6,20}$/
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function getApiErrorMessage(error: unknown, fallback: string) {
   if (isAxiosError<{ message?: string }>(error)) {
@@ -80,6 +93,44 @@ function validateContactForm({
   return errors
 }
 
+function validateRegisterFields({
+  email,
+  password,
+  confirmPassword,
+  countryCode,
+}: {
+  email: string
+  password: string
+  confirmPassword: string
+  countryCode: string
+}) {
+  const errors: RegisterFieldErrors = {}
+
+  if (!email.trim()) {
+    errors.email = 'Email is required.'
+  } else if (!emailPattern.test(email.trim())) {
+    errors.email = 'Enter a valid email address.'
+  }
+
+  if (!password) {
+    errors.password = 'Password is required.'
+  } else if (password.length < 8) {
+    errors.password = 'Password must be at least 8 characters.'
+  }
+
+  if (!confirmPassword) {
+    errors.confirmPassword = 'Confirm your password.'
+  } else if (password !== confirmPassword) {
+    errors.confirmPassword = 'Passwords do not match.'
+  }
+
+  if (!countryCode) {
+    errors.countryCode = 'Select your country.'
+  }
+
+  return errors
+}
+
 export function CheckoutPage() {
   const [searchParams] = useSearchParams()
   const carId = searchParams.get('carId') ?? ''
@@ -89,18 +140,22 @@ export function CheckoutPage() {
     () => (searchParams.get('optionIds') ?? '').split(',').filter(Boolean),
     [searchParams],
   )
-  const session = getStoredAuthSession()
+  const [session] = useState(() => getStoredAuthSession())
+  const isSignedIn = Boolean(session)
   const sessionCountryCode = session?.user.countryCode ?? 'TH'
   const [car, setCar] = useState<CarDetailItem | null>(null)
   const [quote, setQuote] = useState<PricingQuote | null>(null)
   const [booking, setBooking] = useState<BookingItem | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [contactErrors, setContactErrors] = useState<ContactFieldErrors>({})
+  const [registerErrors, setRegisterErrors] = useState<RegisterFieldErrors>({})
   const [contactEmail, setContactEmail] = useState(session?.user.email ?? '')
   const [contactFirstName, setContactFirstName] = useState(session?.user.firstName ?? '')
   const [contactLastName, setContactLastName] = useState(session?.user.lastName ?? '')
   const [contactPhone, setContactPhone] = useState(session?.user.phone ?? '')
   const [contactCountryCode, setContactCountryCode] = useState(sessionCountryCode)
+  const [accountPassword, setAccountPassword] = useState('')
+  const [confirmAccountPassword, setConfirmAccountPassword] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const hasCheckoutDetails = Boolean(carId && pickupAt && returnAt)
@@ -122,7 +177,7 @@ export function CheckoutPage() {
         const [nextCar, nextQuote, profile] = await Promise.all([
           getCarById(carId),
           quotePricing({ carId, pickupAt, returnAt, optionIds }),
-          getMyProfile(),
+          session ? getMyProfile() : Promise.resolve(null),
         ])
 
         if (!isCurrent) {
@@ -131,11 +186,14 @@ export function CheckoutPage() {
 
         setCar(nextCar)
         setQuote(nextQuote)
-        setContactEmail(profile.email)
-        setContactFirstName(profile.firstName ?? '')
-        setContactLastName(profile.lastName ?? '')
-        setContactPhone(profile.phone ?? '')
-        setContactCountryCode(profile.countryCode ?? sessionCountryCode)
+
+        if (profile) {
+          setContactEmail(profile.email)
+          setContactFirstName(profile.firstName ?? '')
+          setContactLastName(profile.lastName ?? '')
+          setContactPhone(profile.phone ?? '')
+          setContactCountryCode(profile.countryCode ?? sessionCountryCode)
+        }
       } catch (error) {
         if (isCurrent) {
           setErrorMessage(getApiErrorMessage(error, 'Unable to prepare checkout.'))
@@ -152,7 +210,7 @@ export function CheckoutPage() {
     return () => {
       isCurrent = false
     }
-  }, [carId, hasCheckoutDetails, optionIds, pickupAt, returnAt, sessionCountryCode])
+  }, [carId, hasCheckoutDetails, optionIds, pickupAt, returnAt, session, sessionCountryCode])
 
   async function handleSubmit() {
     if (!quote) {
@@ -164,9 +222,19 @@ export function CheckoutPage() {
       lastName: contactLastName,
       phone: contactPhone,
     })
+    const nextRegisterErrors = !isSignedIn
+      ? validateRegisterFields({
+          email: contactEmail,
+          password: accountPassword,
+          confirmPassword: confirmAccountPassword,
+          countryCode: contactCountryCode,
+        })
+      : {}
 
     setContactErrors(nextContactErrors)
-    if (Object.keys(nextContactErrors).length > 0) {
+    setRegisterErrors(nextRegisterErrors)
+
+    if (Object.keys(nextContactErrors).length > 0 || Object.keys(nextRegisterErrors).length > 0) {
       return
     }
 
@@ -174,6 +242,21 @@ export function CheckoutPage() {
     setErrorMessage('')
 
     try {
+      let activeSession = session
+
+      if (!activeSession) {
+        activeSession = await register({
+          firstName: contactFirstName.trim(),
+          lastName: contactLastName.trim(),
+          email: contactEmail.trim(),
+          password: accountPassword,
+          phone: contactPhone.trim(),
+          countryCode: contactCountryCode,
+          timezone: getBrowserTimezone(),
+        })
+        storeAuthSession(activeSession)
+      }
+
       const updatedProfile = await updateMyProfile({
         firstName: contactFirstName.trim(),
         lastName: contactLastName.trim(),
@@ -182,11 +265,11 @@ export function CheckoutPage() {
         timezone: getBrowserTimezone(),
       })
 
-      if (session) {
+      if (activeSession) {
         storeAuthSession({
-          ...session,
+          ...activeSession,
           user: {
-            ...session.user,
+            ...activeSession.user,
             ...updatedProfile,
           },
         })
@@ -206,7 +289,17 @@ export function CheckoutPage() {
       })
       setBooking(nextBooking)
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, 'Unable to submit this booking.'))
+      const message = getApiErrorMessage(error, 'Unable to submit this booking.')
+
+      if (!isSignedIn && message === 'Email is already registered') {
+        setRegisterErrors((currentErrors) => ({
+          ...currentErrors,
+          email: 'This email is already registered.',
+        }))
+        return
+      }
+
+      setErrorMessage(message)
     } finally {
       setIsSubmitting(false)
     }
@@ -301,7 +394,10 @@ export function CheckoutPage() {
                     <div className="grid gap-2">
                       <span className="text-sm font-semibold text-stone-500">Options</span>
                       {quote.selectedOptions.map((option) => (
-                        <div key={option.id} className="flex justify-between gap-3 rounded-2xl bg-white/60 px-4 py-3">
+                        <div
+                          key={option.id}
+                          className="flex justify-between gap-3 rounded-2xl bg-white/60 px-4 py-3"
+                        >
                           <span>{option.name}</span>
                           <strong>{formatMoney(quote.currencyCode, option.total)}</strong>
                         </div>
@@ -315,11 +411,25 @@ export function CheckoutPage() {
 
           <Card>
             <CardContent className="grid gap-3">
-              <h2 className="m-0 text-xl font-semibold">Customer</h2>
+              <h2 className="m-0 text-xl font-semibold">
+                {isSignedIn ? 'Customer' : 'Customer and account'}
+              </h2>
               <div className="grid gap-4 rounded-2xl bg-white/60 p-4">
                 <Label>
                   <FieldLabel>Email</FieldLabel>
-                  <Input value={contactEmail} disabled />
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    value={contactEmail}
+                    className={registerErrors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : undefined}
+                    aria-invalid={Boolean(registerErrors.email)}
+                    disabled={isSignedIn || isLoading || isSubmitting || Boolean(booking)}
+                    onChange={(event) => {
+                      setContactEmail(event.target.value)
+                      setRegisterErrors((currentErrors) => ({ ...currentErrors, email: undefined }))
+                    }}
+                  />
+                  <FieldError message={registerErrors.email} />
                 </Label>
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -371,6 +481,79 @@ export function CheckoutPage() {
                   />
                   <FieldError message={contactErrors.phone} />
                 </Label>
+
+                <Label>
+                  <FieldLabel>Country</FieldLabel>
+                  <Select
+                    value={contactCountryCode}
+                    onValueChange={(value) => {
+                      setContactCountryCode(value)
+                      setRegisterErrors((currentErrors) => ({
+                        ...currentErrors,
+                        countryCode: undefined,
+                      }))
+                    }}
+                    disabled={isLoading || isSubmitting || Boolean(booking)}
+                  >
+                    <SelectTrigger
+                      className={registerErrors.countryCode ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : undefined}
+                      aria-invalid={Boolean(registerErrors.countryCode)}
+                    >
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countryOptions.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          {country.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError message={registerErrors.countryCode} />
+                </Label>
+
+                {!isSignedIn ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Label>
+                      <FieldLabel>Create password</FieldLabel>
+                      <Input
+                        type="password"
+                        autoComplete="new-password"
+                        value={accountPassword}
+                        className={registerErrors.password ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : undefined}
+                        aria-invalid={Boolean(registerErrors.password)}
+                        disabled={isLoading || isSubmitting || Boolean(booking)}
+                        onChange={(event) => {
+                          setAccountPassword(event.target.value)
+                          setRegisterErrors((currentErrors) => ({
+                            ...currentErrors,
+                            password: undefined,
+                          }))
+                        }}
+                      />
+                      <FieldError message={registerErrors.password} />
+                    </Label>
+                    <Label>
+                      <FieldLabel>Confirm password</FieldLabel>
+                      <Input
+                        type="password"
+                        autoComplete="new-password"
+                        value={confirmAccountPassword}
+                        className={registerErrors.confirmPassword ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : undefined}
+                        aria-invalid={Boolean(registerErrors.confirmPassword)}
+                        disabled={isLoading || isSubmitting || Boolean(booking)}
+                        onChange={(event) => {
+                          setConfirmAccountPassword(event.target.value)
+                          setRegisterErrors((currentErrors) => ({
+                            ...currentErrors,
+                            confirmPassword: undefined,
+                          }))
+                        }}
+                      />
+                      <FieldError message={registerErrors.confirmPassword} />
+                    </Label>
+                  </div>
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -402,14 +585,25 @@ export function CheckoutPage() {
                 <p className="m-0 text-stone-500">Prepare a quote before submitting.</p>
               )}
 
-              <Button
-                type="button"
-                disabled={!quote || isLoading || isSubmitting || Boolean(booking)}
-                onClick={handleSubmit}
-              >
-                {isSubmitting ? 'Submitting...' : 'Submit booking and continue to deposit'}
-                <ArrowRight className="size-4" />
-              </Button>
+              {booking ? (
+                <Link to="/my-bookings" className={buttonVariants()}>
+                  Go to My Bookings
+                  <ArrowRight className="size-4" />
+                </Link>
+              ) : (
+                <Button
+                  type="button"
+                  disabled={!quote || isLoading || isSubmitting}
+                  onClick={handleSubmit}
+                >
+                  {isSubmitting
+                    ? 'Submitting booking...'
+                    : isSignedIn
+                      ? 'Submit booking and continue to deposit'
+                      : 'Create account, book, and continue to deposit'}
+                  <ArrowRight className="size-4" />
+                </Button>
+              )}
             </CardContent>
           </Card>
         </aside>

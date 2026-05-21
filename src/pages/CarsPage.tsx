@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { PageSection } from '../components/PageSection'
+import { Button } from '../components/ui/button'
 import { listCars } from '../features/cars/api'
 import { CarsFilterPanel } from '../features/cars/CarsFilterPanel'
 import { CarsResultsState } from '../features/cars/CarsResultsState'
 import { defaultCarFilters, minimumAdvanceBookingHours } from '../features/cars/constants'
 import type { CarFilters, CarListItem } from '../features/cars/types'
 import { EMPTY_SELECT_VALUE, filtersFromSearchParams, optionsFromCars } from '../features/cars/utils/cars-filter-utils'
+
+const carsPerPage = 6
 
 function getStoredCustomerCountryCode() {
   return window.localStorage.getItem('customerCountryCode') ?? 'TH'
@@ -27,6 +30,7 @@ export function CarsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [filterErrorMessage, setFilterErrorMessage] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
 
   const filters = useMemo(
     () => filtersFromSearchParams(searchParams),
@@ -42,6 +46,22 @@ export function CarsPage() {
   const pendingFilterCount = Object.values(draftFilters).filter(Boolean).length
   const filterOptions = useMemo(() => optionsFromCars(allCars), [allCars])
   const customerCountryCode = getStoredCustomerCountryCode()
+  const totalPages = Math.max(1, Math.ceil(cars.length / carsPerPage))
+  const paginatedCars = useMemo(() => {
+    const startIndex = (currentPage - 1) * carsPerPage
+
+    return cars.slice(startIndex, startIndex + carsPerPage)
+  }, [cars, currentPage])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filters])
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
 
   useEffect(() => {
     let isCurrent = true
@@ -177,7 +197,7 @@ export function CarsPage() {
         />
 
         <CarsResultsState
-          cars={cars}
+          cars={paginatedCars}
           filters={filters}
           isLoading={isLoading}
           errorMessage={errorMessage}
@@ -185,6 +205,35 @@ export function CarsPage() {
           onRetry={() => setSearchParams(searchParams)}
           onReset={resetFilters}
         />
+
+        {!isLoading && !errorMessage && cars.length > carsPerPage ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[28px] border border-black/8 bg-white/55 px-4 py-3 backdrop-blur">
+            <p className="m-0 text-sm text-stone-500">
+              Showing {(currentPage - 1) * carsPerPage + 1}-{Math.min(currentPage * carsPerPage, cars.length)} of {cars.length} cars
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              >
+                Previous
+              </Button>
+              <span className="min-w-20 text-center text-sm font-medium text-stone-600">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </PageSection>
   )
