@@ -451,7 +451,7 @@ export function AdminDashboardPage() {
             </span>
             <strong className="text-3xl leading-none">{filteredBookings.length}</strong>
             <span className="text-sm font-semibold text-stone-700">Bookings in scope</span>
-            <p className="m-0 text-sm text-stone-500">Current filtered report sample.</p>
+            <p className="m-0 text-sm text-stone-500">Current filtered booking scope.</p>
           </CardContent>
         </Card>
         <Card>

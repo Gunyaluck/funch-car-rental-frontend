@@ -35,7 +35,7 @@ export function PageSection({
                 {eyebrow}
               </span>
             ) : null}
-            <h1 className="m-0 max-w-[760px] text-[clamp(1.8rem,3vw,3rem)] leading-ืนืำ tracking-tighter font-semibold">
+            <h1 className="m-0 max-w-[760px] text-[clamp(1.8rem,3vw,3rem)] tracking-tighter font-semibold">
               {title}
             </h1>
             {description ? (

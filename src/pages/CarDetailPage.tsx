@@ -202,7 +202,6 @@ export function CarDetailPage() {
 
   return (
     <PageSection
-      eyebrow={`${car.countryCode} · ${car.city}`}
       title={car.name}
       description={car.description ?? `${car.brand} ${car.model} rental details.`}
     >

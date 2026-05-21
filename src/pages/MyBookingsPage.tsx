@@ -1,6 +1,7 @@
 import { isAxiosError } from 'axios'
 import { ArrowRight, CalendarPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageSection } from '../components/PageSection'
 import { Alert } from '../components/ui/alert'
@@ -122,8 +123,11 @@ export function MyBookingsPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [actionBookingId, setActionBookingId] = useState('')
+  const [confirmCancelBookingId, setConfirmCancelBookingId] = useState('')
   const depositResult = searchParams.get('deposit')
   const depositBookingId = searchParams.get('bookingId')
+  const confirmCancelBooking =
+    bookings.find((booking) => booking.id === confirmCancelBookingId) ?? null
 
   useEffect(() => {
     let isCurrent = true
@@ -183,7 +187,7 @@ export function MyBookingsPage() {
         return
       }
 
-      setErrorMessage('Stripe checkout URL is not available yet.')
+      setErrorMessage('Payment checkout is temporarily unavailable. Please try again shortly.')
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, 'Unable to start the deposit checkout.'))
     } finally {
@@ -355,7 +359,7 @@ export function MyBookingsPage() {
                         type="button"
                         variant="outline"
                         disabled={isBusy}
-                        onClick={() => handleCancelBooking(booking.id)}
+                        onClick={() => setConfirmCancelBookingId(booking.id)}
                       >
                         {isBusy ? 'Processing...' : 'Cancel booking'}
                       </Button>
@@ -399,6 +403,57 @@ export function MyBookingsPage() {
           </Card>
         </aside>
       </div>
+
+      {confirmCancelBooking
+        ? createPortal(
+            <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4">
+              <Card className="w-full max-w-md">
+                <CardContent className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Badge variant="danger">Confirm cancellation</Badge>
+                    <h2 className="m-0 text-xl font-semibold">Cancel this booking?</h2>
+                    <p className="m-0 text-stone-500">
+                      {confirmCancelBooking.car.brand} {confirmCancelBooking.car.model} for pickup
+                      on{' '}
+                      {formatDateTime(
+                        confirmCancelBooking.pickupAt,
+                        confirmCancelBooking.pickupTimezone,
+                      )}
+                    </p>
+                    <p className="m-0 text-sm text-stone-500">
+                      This action will cancel the booking. If a deposit was already paid, the
+                      payment status may move to refund handling.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap justify-end gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={actionBookingId === confirmCancelBooking.id}
+                      onClick={() => setConfirmCancelBookingId('')}
+                    >
+                      Keep booking
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={actionBookingId === confirmCancelBooking.id}
+                      onClick={async () => {
+                        await handleCancelBooking(confirmCancelBooking.id)
+                        setConfirmCancelBookingId('')
+                      }}
+                    >
+                      {actionBookingId === confirmCancelBooking.id
+                        ? 'Processing...'
+                        : 'Yes, cancel'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>,
+            document.body,
+          )
+        : null}
     </PageSection>
   )
 }

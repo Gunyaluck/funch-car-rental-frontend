@@ -60,7 +60,7 @@ export function BookingQuotePanel({
         ? 'Select a return date to calculate the quote.'
         : !pickupAt && returnAt
           ? 'Select a pickup date to calculate the quote.'
-          : 'Quote is not available yet. Adjust the pickup or return time and try again.'
+          : 'Pricing is unavailable for the selected schedule. Adjust the pickup or return time and try again.'
   const statusLabel = !isBookable
     ? 'Not bookable'
     : quoteErrorMessage

@@ -76,6 +76,7 @@ export function AdminCarsPage() {
   const [statusFilter, setStatusFilter] = useState<CarListItem['status'] | 'ALL'>('ALL')
   const [selectedCarId, setSelectedCarId] = useState('')
   const [selectedCar, setSelectedCar] = useState<CarDetailItem | null>(null)
+  const [selectedCarImageUrl, setSelectedCarImageUrl] = useState('')
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [detailErrorMessage, setDetailErrorMessage] = useState('')
   const [isStatusUpdating, setIsStatusUpdating] = useState(false)
@@ -92,6 +93,9 @@ export function AdminCarsPage() {
       const updatedCar = await updateAdminCarStatus(selectedCar.id, nextStatus)
 
       setSelectedCar(updatedCar)
+      setSelectedCarImageUrl(
+        updatedCar.images.find((image) => image.isCover)?.url ?? updatedCar.images[0]?.url ?? '',
+      )
       setCars((currentCars) =>
         currentCars.map((car) =>
           car.id === updatedCar.id
@@ -167,10 +171,14 @@ export function AdminCarsPage() {
 
         if (isCurrent) {
           setSelectedCar(result)
+          setSelectedCarImageUrl(
+            result.images.find((image) => image.isCover)?.url ?? result.images[0]?.url ?? '',
+          )
         }
       } catch (error) {
         if (isCurrent) {
           setSelectedCar(null)
+          setSelectedCarImageUrl('')
           setDetailErrorMessage(
             getApiErrorMessage(error, 'Unable to load the selected car details.'),
           )
@@ -485,9 +493,9 @@ export function AdminCarsPage() {
               <>
                 <Card className="overflow-hidden">
                   <div className="relative min-h-[220px] bg-[linear-gradient(135deg,rgba(35,88,63,0.12),rgba(255,255,255,0.4))]">
-                    {selectedCar.images[0]?.url ? (
+                    {selectedCarImageUrl ? (
                       <img
-                        src={selectedCar.images[0].url}
+                        src={selectedCarImageUrl}
                         alt={selectedCar.name}
                         className="absolute inset-0 h-full w-full object-cover"
                       />
@@ -569,6 +577,36 @@ export function AdminCarsPage() {
                       <p className="m-0 text-sm text-stone-500">
                         {selectedCar.images.length} images · {selectedCar.options.length} options
                       </p>
+                      {selectedCar.images.length > 0 ? (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {selectedCar.images.map((image, index) => {
+                            const isActive = image.url === selectedCarImageUrl
+
+                            return (
+                              <button
+                                key={image.id}
+                                type="button"
+                                className={`overflow-hidden rounded-2xl border text-left transition ${
+                                  isActive
+                                    ? 'border-forest-700/35 shadow-[0_10px_28px_rgba(32,48,36,0.12)]'
+                                    : 'border-black/8 hover:-translate-y-px'
+                                }`}
+                                onClick={() => setSelectedCarImageUrl(image.url)}
+                              >
+                                <img
+                                  src={image.url}
+                                  alt={`${selectedCar.name} ${index + 1}`}
+                                  className="h-28 w-full object-cover"
+                                />
+                                <div className="flex items-center justify-between gap-3 bg-white/80 px-3 py-2 text-sm text-stone-600">
+                                  <span>{image.isCover ? 'Cover image' : `Gallery image ${index + 1}`}</span>
+                                  {isActive ? <Badge variant="chip">Previewing</Badge> : null}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="flex justify-end">

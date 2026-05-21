@@ -77,25 +77,50 @@ type AdminCarFormProps = {
   onSubmitted?: (car: CarDetailItem) => void
 }
 
+type EditableCarImage = CreateCarPayload['images'][number] & {
+  previewUrl?: string
+  isUploading?: boolean
+}
+
+type EditableCreateCarPayload = Omit<CreateCarPayload, 'images'> & {
+  images: EditableCarImage[]
+}
+
 export function AdminCarForm({
   mode = 'create',
   carId,
   initialValues,
   onSubmitted,
 }: AdminCarFormProps) {
-  const [createForm, setCreateForm] = useState<CreateCarPayload>(initialValues ?? defaultCreateCarForm)
+  const [createForm, setCreateForm] = useState<EditableCreateCarPayload>(initialValues ?? defaultCreateCarForm)
   const [createErrorMessage, setCreateErrorMessage] = useState('')
   const [createSuccessMessage, setCreateSuccessMessage] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [imageUploadErrorMessage, setImageUploadErrorMessage] = useState('')
+  const [brokenImageUrls, setBrokenImageUrls] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const imagePreviewsRef = useRef<EditableCarImage[]>([])
 
   useEffect(() => {
     if (initialValues) {
       setCreateForm(initialValues)
     }
   }, [initialValues])
+
+  useEffect(() => {
+    imagePreviewsRef.current = createForm.images
+  }, [createForm.images])
+
+  useEffect(() => {
+    return () => {
+      imagePreviewsRef.current.forEach((image) => {
+        if (image.previewUrl) {
+          URL.revokeObjectURL(image.previewUrl)
+        }
+      })
+    }
+  }, [])
 
   function updateCreateForm<K extends keyof CreateCarPayload>(key: K, value: CreateCarPayload[K]) {
     setCreateErrorMessage('')
@@ -120,6 +145,14 @@ export function AdminCarForm({
     }))
   }
 
+  function registerBrokenImage(url: string) {
+    setBrokenImageUrls((current) => (current.includes(url) ? current : [...current, url]))
+  }
+
+  function clearBrokenImage(url: string) {
+    setBrokenImageUrls((current) => current.filter((item) => item !== url))
+  }
+
   async function handleImageFileChange(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
 
@@ -128,23 +161,66 @@ export function AdminCarForm({
     }
 
     setImageUploadErrorMessage('')
+    setBrokenImageUrls([])
     setIsUploadingImage(true)
+
+    const previewImages = files.map((file, index) => ({
+      previewUrl: URL.createObjectURL(file),
+      url: '',
+      sortOrder: createForm.images.length + index,
+      isCover: createForm.images.length === 0 && index === 0,
+      isUploading: true,
+    }))
+
+    setCreateForm((current) => ({
+      ...current,
+      images: [...current.images, ...previewImages],
+    }))
 
     try {
       const uploadedImages = await Promise.all(files.map((file) => uploadCarImage(file)))
 
       setCreateForm((current) => ({
         ...current,
-        images: [
-          ...current.images,
-          ...uploadedImages.map((image, index) => ({
-            url: image.url,
-            sortOrder: current.images.length + index,
-            isCover: current.images.length === 0 && index === 0,
-          })),
-        ],
+        images: (() => {
+          let uploadedImageIndex = 0
+
+          return current.images.map((image) => {
+            if (!image.isUploading) {
+              return image
+            }
+
+            const nextUploadedImage = uploadedImages[uploadedImageIndex]
+            uploadedImageIndex += 1
+
+            if (!nextUploadedImage) {
+              return {
+                ...image,
+                isUploading: false,
+              }
+            }
+
+            if (image.previewUrl) {
+              URL.revokeObjectURL(image.previewUrl)
+            }
+
+            return {
+              ...image,
+              url: nextUploadedImage.url,
+              previewUrl: undefined,
+              isUploading: false,
+            }
+          })
+        })(),
       }))
     } catch (error) {
+      setCreateForm((current) => ({
+        ...current,
+        images: current.images.map((image) => ({
+          ...image,
+          isUploading: false,
+        })),
+      }))
       setImageUploadErrorMessage(
         getApiErrorMessage(error, 'Unable to upload one or more images right now.'),
       )
@@ -156,6 +232,11 @@ export function AdminCarForm({
 
   function removeImage(index: number) {
     setCreateForm((current) => {
+      const removedImage = current.images[index]
+      if (removedImage?.previewUrl) {
+        URL.revokeObjectURL(removedImage.previewUrl)
+      }
+
       const nextImages = current.images.filter((_, imageIndex) => imageIndex !== index)
       const hasCover = nextImages.some((image) => image.isCover)
 
@@ -222,7 +303,7 @@ export function AdminCarForm({
         currencyCode: createForm.currencyCode.trim().toUpperCase(),
         description: createForm.description?.trim() || undefined,
         images: createForm.images
-          .filter((image) => image.url.trim())
+          .filter((image) => image.url.trim() && !image.isUploading)
           .map((image, index) => ({
             url: image.url.trim(),
             sortOrder: index,
@@ -415,24 +496,54 @@ export function AdminCarForm({
               </Button>
             </div>
           </div>
+          {brokenImageUrls.length > 0 ? (
+            <Alert title="Uploaded image cannot be displayed">
+              The file was uploaded, but its public URL could not be loaded. Check whether the
+              Supabase Storage bucket <code>car-images</code> is public and that the saved URL is
+              reachable.
+            </Alert>
+          ) : null}
           {createForm.images.length === 0 ? <div className="rounded-2xl bg-white/60 p-4 text-sm text-stone-500">No images uploaded yet.</div> : null}
-          {createForm.images.map((image, index) => (
-            <div key={`image-${index}`} className="grid gap-3 rounded-2xl bg-white/60 p-4 md:grid-cols-[120px_minmax(0,1.8fr)_120px_auto_auto]">
-              <div className="overflow-hidden rounded-2xl bg-black/5">
-                <img src={image.url} alt={`Upload ${index + 1}`} className="h-24 w-full object-cover" />
-              </div>
-              <div className="grid gap-2">
-                <span className="text-sm font-semibold text-stone-700">Uploaded image URL</span>
-                <Input value={image.url} disabled />
-              </div>
-              <Input type="number" min="0" value={image.sortOrder} onChange={(e) => updateImage(index, 'sortOrder', Number(e.target.value))} placeholder="Sort" />
-              <label className="flex items-center gap-2 text-sm text-stone-600">
-                <input type="checkbox" checked={image.isCover} onChange={(e) => updateImage(index, 'isCover', e.target.checked)} className="size-4 rounded border-stone-300" />
-                Cover
-              </label>
-              <Button type="button" variant="outline" onClick={() => removeImage(index)}>Remove</Button>
+          {createForm.images.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {createForm.images.map((image, index) => (
+                <div key={`image-${index}`} className="grid gap-3 rounded-2xl bg-white/60 p-4">
+                  <div className="overflow-hidden rounded-2xl bg-black/5">
+                    <img
+                      src={image.previewUrl || image.url}
+                      alt={`Upload ${index + 1}`}
+                      className="h-48 w-full object-cover"
+                      onLoad={() => {
+                        if (image.url) {
+                          clearBrokenImage(image.url)
+                        }
+                      }}
+                      onError={() => {
+                        if (image.url) {
+                          registerBrokenImage(image.url)
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="flex items-center gap-2 text-sm text-stone-600">
+                      <input type="checkbox" checked={image.isCover} onChange={(e) => updateImage(index, 'isCover', e.target.checked)} className="size-4 rounded border-stone-300" />
+                      Cover
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-8 px-2.5 py-1.5 text-xs"
+                      onClick={() => removeImage(index)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : null}
         </div>
 
         <div className="grid gap-3">
@@ -480,8 +591,13 @@ export function AdminCarForm({
           <Button
             type="button"
             variant="outline"
-            disabled={isCreating}
+            disabled={isCreating || isUploadingImage}
             onClick={() => {
+              createForm.images.forEach((image) => {
+                if (image.previewUrl) {
+                  URL.revokeObjectURL(image.previewUrl)
+                }
+              })
               setCreateForm(initialValues ?? defaultCreateCarForm)
               setCreateErrorMessage('')
               setCreateSuccessMessage('')
@@ -489,7 +605,7 @@ export function AdminCarForm({
           >
             Reset
           </Button>
-          <Button type="button" disabled={isCreating} onClick={handleSubmitCar}>
+          <Button type="button" disabled={isCreating || isUploadingImage} onClick={handleSubmitCar}>
             {isCreating
               ? mode === 'edit'
                 ? 'Saving...'

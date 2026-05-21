@@ -5,12 +5,13 @@ const adminLinks = [
   { to: '/admin/bookings', label: 'Bookings' },
   { to: '/admin/cars', label: 'Cars' },
   { to: '/admin/members', label: 'Members' },
+  { to: '/admin/reports', label: 'Reports' },
   { to: '/admin', label: 'Dashboard', end: true },
 ]
 
 function getAdminClassName({ isActive }: { isActive: boolean }) {
   return [
-    'inline-flex items-center gap-2.5 rounded-2xl px-3.5 py-[13px] transition',
+    'inline-flex items-center gap-2.5 rounded-[22px] px-5 py-[13px] transition',
     isActive
       ? 'bg-white/8 text-sand-50/95'
       : 'text-sand-50/75 hover:bg-white/8 hover:text-sand-50/95',
@@ -41,7 +42,7 @@ export function AdminLayout() {
       >
         <div className="mb-7 grid gap-2">
           <h1 className="m-0 text-[1.25rem] uppercase tracking-[0.08em]">Funch Admin</h1>
-          <p className="m-0 text-sand-50/65">Approval, fleet, members, and analytics workspace.</p>
+          <p className="m-0 text-sand-50/65">Manage bookings, fleet availability, and member access.</p>
         </div>
 
         <nav className="grid gap-2.5" aria-label="Admin navigation">
@@ -60,14 +61,14 @@ export function AdminLayout() {
         <div className="mt-7 grid gap-2.5">
           <NavLink
             to="/"
-            className="inline-flex items-center gap-2.5 rounded-2xl px-3.5 py-[13px] text-sand-50/75 transition hover:bg-white/8 hover:text-sand-50/95"
+            className="inline-flex items-center gap-2.5 rounded-[22px] px-5 py-[13px] text-sand-50/75 transition hover:bg-white/8 hover:text-sand-50/95"
           >
             Back to Website
           </NavLink>
           <button
             type="button"
             onClick={handleLogout}
-            className="inline-flex items-center gap-2.5 rounded-2xl px-3.5 py-[13px] text-left text-red-200 transition hover:bg-white/8 hover:text-red-100"
+            className="inline-flex items-center gap-2.5 rounded-[22px] px-5 py-[13px] text-left text-red-200 transition hover:bg-white/8 hover:text-red-100"
           >
             Logout
           </button>
@@ -75,15 +76,16 @@ export function AdminLayout() {
       </aside>
 
       <div
+        className="overflow-x-clip"
         style={{
           background:
             'radial-gradient(circle at top left, rgba(35, 88, 63, 0.1), transparent 30%), linear-gradient(180deg, rgba(247, 243, 235, 0.84), rgba(252, 249, 243, 0.96))',
         }}
       >
         <div className="mx-auto w-[min(1200px,calc(100%-32px))] max-md:w-[min(100%,calc(100%-24px))]">
-          <header className="sticky top-0 z-20 flex flex-col items-start justify-between gap-4 py-[22px] pb-2.5 md:flex-row md:items-center">
+          <header className="sticky top-0 z-20 flex flex-col items-start justify-between gap-4 px-4 py-[22px] pb-2.5 md:px-6 md:flex-row md:items-center">
             <div
-              className="absolute inset-x-[-24px] inset-y-0 -z-10 border-b border-black/5 bg-[rgba(252,249,243,0.88)] backdrop-blur-xl md:inset-x-[-32px]"
+              className="absolute inset-x-0 inset-y-0 -z-10 rounded-b-[28px] border-b border-black/5 bg-[rgba(252,249,243,0.88)] shadow-[0_14px_34px_rgba(71,59,37,0.08)] backdrop-blur-xl"
               aria-hidden="true"
             />
             <div>
@@ -91,7 +93,7 @@ export function AdminLayout() {
                 {currentSection}
               </h2>
               <p className="mt-1 mb-0 text-stone-500">
-                Scaffolded admin shell for management and approval flows.
+                Review operations, update records, and keep the catalog current.
               </p>
             </div>
 

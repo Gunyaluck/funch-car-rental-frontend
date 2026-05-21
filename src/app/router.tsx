@@ -7,6 +7,7 @@ import { AdminEditCarPage } from '../pages/admin/AdminEditCarPage'
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
 import { AdminLoginPage } from '../pages/admin/AdminLoginPage'
 import { AdminMembersPage } from '../pages/admin/AdminMembersPage'
+import { AdminReportsPage } from '../pages/admin/AdminReportsPage'
 import { AdminBookingsPage } from '../pages/admin/AdminBookingsPage'
 import { CarDetailPage } from '../pages/CarDetailPage'
 import { CarsPage } from '../pages/CarsPage'
@@ -38,11 +39,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'checkout',
-        element: (
-          <RequireAuth>
-            <CheckoutPage />
-          </RequireAuth>
-        ),
+        element: <CheckoutPage />,
       },
       {
         path: 'my-bookings',
@@ -72,6 +69,7 @@ export const router = createBrowserRouter([
       { path: 'cars/create', element: <AdminCreateCarPage /> },
       { path: 'cars/:carId/edit', element: <AdminEditCarPage /> },
       { path: 'members', element: <AdminMembersPage /> },
+      { path: 'reports', element: <AdminReportsPage /> },
     ],
   },
 ])
