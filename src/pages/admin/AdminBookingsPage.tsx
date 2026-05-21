@@ -1,17 +1,17 @@
-import { isAxiosError } from 'axios'
 import { useEffect, useState } from 'react'
 import { Alert } from '../../components/ui/alert'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
-import { Input } from '../../components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select'
+  AdminBookingCard,
+} from '../../features/bookings/AdminBookingCard'
+import {
+  AdminBookingConfirmDialog,
+} from '../../features/bookings/AdminBookingConfirmDialog'
+import {
+  AdminBookingsFiltersCard,
+} from '../../features/bookings/AdminBookingsFiltersCard'
 import {
   approveBooking,
   listAdminBookings,
@@ -20,78 +20,11 @@ import {
   saveBookingAdminNote,
 } from '../../features/bookings/api'
 import type { BookingItem, BookingStatus, PaymentStatus } from '../../features/bookings/types'
-import { formatMoney } from '../../features/cars/utils/car-detail-utils'
-
-const PAGE_SIZE = 5
-const BOOKING_STATUS_OPTIONS: Array<BookingStatus | 'ALL'> = [
-  'ALL',
-  'PENDING',
-  'APPROVED',
-  'REJECTED',
-  'CANCELLED',
-]
-const PAYMENT_STATUS_OPTIONS: Array<PaymentStatus | 'ALL'> = [
-  'ALL',
-  'UNPAID',
-  'DEPOSIT_PENDING',
-  'DEPOSIT_PAID',
-  'REFUND_PENDING',
-  'FAILED',
-  'EXPIRED',
-  'REFUNDED',
-]
-
-function getApiErrorMessage(error: unknown, fallback: string) {
-  if (isAxiosError<{ message?: string }>(error)) {
-    return error.response?.data?.message ?? fallback
-  }
-
-  return error instanceof Error ? error.message : fallback
-}
-
-function formatDateTime(value: string, timezone: string) {
-  return new Intl.DateTimeFormat('en', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: timezone,
-  }).format(new Date(value))
-}
-
-function getStatusVariant(paymentStatus: PaymentStatus, status: BookingItem['status']) {
-  if (paymentStatus === 'REFUND_PENDING' || paymentStatus === 'REFUNDED') {
-    return 'danger' as const
-  }
-
-  if (status === 'APPROVED') {
-    return 'default' as const
-  }
-
-  return 'muted' as const
-}
-
-function getSummaryLabel(booking: BookingItem) {
-  if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PENDING') {
-    return 'Waiting for deposit'
-  }
-
-  if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PAID') {
-    return 'Ready for branch call'
-  }
-
-  if (booking.status === 'APPROVED') {
-    return 'Confirmed'
-  }
-
-  if (booking.paymentStatus === 'REFUND_PENDING') {
-    return 'Refund pending'
-  }
-
-  if (booking.paymentStatus === 'REFUNDED') {
-    return 'Refunded'
-  }
-
-  return booking.status
-}
+import {
+  getAdminBookingsApiErrorMessage,
+  matchesAdminBookingFilters,
+  PAGE_SIZE,
+} from '../../features/bookings/admin-bookings-utils'
 
 export function AdminBookingsPage() {
   const [bookings, setBookings] = useState<BookingItem[]>([])
@@ -125,7 +58,7 @@ export function AdminBookingsPage() {
         }
       } catch (error) {
         if (isCurrent) {
-          setErrorMessage(getApiErrorMessage(error, 'Unable to load admin bookings.'))
+          setErrorMessage(getAdminBookingsApiErrorMessage(error, 'Unable to load admin bookings.'))
         }
       } finally {
         if (isCurrent) {
@@ -165,7 +98,7 @@ export function AdminBookingsPage() {
         [bookingId]: updatedBooking.adminNote ?? '',
       }))
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, 'Unable to update this booking.'))
+      setErrorMessage(getAdminBookingsApiErrorMessage(error, 'Unable to update this booking.'))
     } finally {
       setActionBookingId('')
     }
@@ -188,43 +121,21 @@ export function AdminBookingsPage() {
         [bookingId]: updatedBooking.adminNote ?? '',
       }))
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, 'Unable to save this note.'))
+      setErrorMessage(getAdminBookingsApiErrorMessage(error, 'Unable to save this note.'))
     } finally {
       setSavingNoteBookingId('')
     }
   }
 
   const normalizedSearch = searchTerm.trim().toLowerCase()
-  const filteredBookings = bookings.filter((booking) => {
-    if (statusFilter !== 'ALL' && booking.status !== statusFilter) {
-      return false
-    }
-
-    if (paymentFilter !== 'ALL' && booking.paymentStatus !== paymentFilter) {
-      return false
-    }
-
-    if (!normalizedSearch) {
-      return true
-    }
-
-    const searchableText = [
-      booking.id,
-      booking.user.firstName,
-      booking.user.lastName,
-      booking.user.email,
-      booking.user.phone ?? '',
-      booking.car.brand,
-      booking.car.model,
-      booking.car.name,
-      booking.car.city,
-      booking.adminNote ?? '',
-    ]
-      .join(' ')
-      .toLowerCase()
-
-    return searchableText.includes(normalizedSearch)
-  })
+  const filteredBookings = bookings.filter((booking) =>
+    matchesAdminBookingFilters({
+      booking,
+      normalizedSearch,
+      paymentFilter,
+      statusFilter,
+    }),
+  )
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / PAGE_SIZE))
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const paginatedBookings = filteredBookings.slice(
@@ -240,62 +151,14 @@ export function AdminBookingsPage() {
     <div className="grid gap-4">
       {errorMessage ? <Alert title="Admin bookings unavailable">{errorMessage}</Alert> : null}
 
-      <Card>
-        <CardContent className="grid gap-4">
-          <div className="grid gap-2">
-            <h2 className="m-0 text-xl font-semibold">Booking queue</h2>
-            <p className="m-0 text-stone-500">
-              Search bookings, filter by status, and review results page by page.
-            </p>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_1fr_1fr]">
-            <Input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search by booking ID, customer, email, car, city, or note"
-            />
-
-            <label className="grid gap-1 text-sm text-stone-500">
-              <span className="font-semibold">Booking status</span>
-              <Select
-                value={statusFilter}
-                onValueChange={(value) => setStatusFilter(value as BookingStatus | 'ALL')}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BOOKING_STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option === 'ALL' ? 'All statuses' : option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-
-            <label className="grid gap-1 text-sm text-stone-500">
-              <span className="font-semibold">Payment status</span>
-              <Select
-                value={paymentFilter}
-                onValueChange={(value) => setPaymentFilter(value as PaymentStatus | 'ALL')}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All payments" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option === 'ALL' ? 'All payments' : option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-          </div>
-        </CardContent>
-      </Card>
+      <AdminBookingsFiltersCard
+        searchTerm={searchTerm}
+        statusFilter={statusFilter}
+        paymentFilter={paymentFilter}
+        onSearchTermChange={setSearchTerm}
+        onStatusFilterChange={setStatusFilter}
+        onPaymentFilterChange={setPaymentFilter}
+      />
 
       {isLoading ? (
         <Card>
@@ -325,124 +188,23 @@ export function AdminBookingsPage() {
         const note = notesById[booking.id] ?? ''
 
         return (
-          <Card key={booking.id}>
-            <CardContent className="grid gap-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="grid gap-2">
-                  <Badge variant={getStatusVariant(booking.paymentStatus, booking.status)}>
-                    {getSummaryLabel(booking)}
-                  </Badge>
-                  <h2 className="m-0 text-xl font-semibold">
-                    {booking.car.brand} {booking.car.model}
-                  </h2>
-                  <p className="m-0 text-stone-500">
-                    {booking.user.firstName} {booking.user.lastName} · {booking.user.email}
-                    {booking.user.phone ? ` · ${booking.user.phone}` : ''}
-                  </p>
-                </div>
-                <div className="grid gap-1 text-right text-sm text-stone-500">
-                  <span>{formatMoney(booking.currencyCode, booking.depositAmount)} deposit</span>
-                  <span>{formatMoney(booking.currencyCode, booking.grandTotal)} total</span>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
-                  <span className="text-sm font-semibold text-stone-500">Pickup</span>
-                  <span>{formatDateTime(booking.pickupAt, booking.pickupTimezone)}</span>
-                </div>
-                <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
-                  <span className="text-sm font-semibold text-stone-500">Return</span>
-                  <span>{formatDateTime(booking.returnAt, booking.pickupTimezone)}</span>
-                </div>
-              </div>
-
-              <div className="grid gap-3 rounded-2xl bg-white/60 p-4 md:grid-cols-4">
-                <div>
-                  <span className="block text-sm font-semibold text-stone-500">Booking status</span>
-                  <strong>{booking.status}</strong>
-                </div>
-                <div>
-                  <span className="block text-sm font-semibold text-stone-500">Payment status</span>
-                  <strong>{booking.paymentStatus}</strong>
-                </div>
-                <div>
-                  <span className="block text-sm font-semibold text-stone-500">Deposit paid</span>
-                  <strong>
-                    {booking.depositPaidAt
-                      ? formatDateTime(booking.depositPaidAt, booking.pickupTimezone)
-                      : 'Not yet'}
-                  </strong>
-                </div>
-                <div>
-                  <span className="block text-sm font-semibold text-stone-500">Deposit due</span>
-                  <strong>
-                    {booking.depositDueAt
-                      ? formatDateTime(booking.depositDueAt, booking.pickupTimezone)
-                      : 'N/A'}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <span className="text-sm font-semibold text-stone-500">Branch note</span>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    value={note}
-                    disabled={isBusy}
-                    onChange={(event) =>
-                      setNotesById((currentNotes) => ({
-                        ...currentNotes,
-                        [booking.id]: event.target.value,
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isBusy}
-                    onClick={() => handleSaveNote(booking.id)}
-                  >
-                    {isSavingNote ? 'Saving...' : 'Save note'}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                {booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PAID' ? (
-                  <Button
-                    type="button"
-                    disabled={isBusy}
-                    onClick={() => setConfirmApproveBookingId(booking.id)}
-                  >
-                    {isBusy ? 'Processing...' : 'Approve and confirm'}
-                  </Button>
-                ) : null}
-
-                {booking.status === 'PENDING' ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isBusy}
-                    onClick={() => setConfirmRejectBookingId(booking.id)}
-                  >
-                    {isBusy ? 'Processing...' : 'Reject booking'}
-                  </Button>
-                ) : null}
-
-                {booking.paymentStatus === 'REFUND_PENDING' ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isBusy}
-                    onClick={() => runAction(booking.id, markBookingRefunded)}
-                  >
-                    {isBusy ? 'Processing...' : 'Mark refund completed'}
-                  </Button>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
+          <AdminBookingCard
+            key={booking.id}
+            booking={booking}
+            note={note}
+            isBusy={isBusy}
+            isSavingNote={isSavingNote}
+            onNoteChange={(value) =>
+              setNotesById((currentNotes) => ({
+                ...currentNotes,
+                [booking.id]: value,
+              }))
+            }
+            onSaveNote={() => handleSaveNote(booking.id)}
+            onApprove={() => setConfirmApproveBookingId(booking.id)}
+            onReject={() => setConfirmRejectBookingId(booking.id)}
+            onMarkRefundCompleted={() => runAction(booking.id, markBookingRefunded)}
+          />
         )
       })}
 
@@ -481,101 +243,46 @@ export function AdminBookingsPage() {
         </Card>
       ) : null}
 
-      {confirmRejectBooking ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4">
-          <Card className="w-full max-w-md">
-            <CardContent className="grid gap-4">
-              <div className="grid gap-2">
-                <Badge variant="danger">Confirm rejection</Badge>
-                <h2 className="m-0 text-xl font-semibold">Reject this booking?</h2>
-                <p className="m-0 text-stone-500">
-                  {confirmRejectBooking.user.firstName} {confirmRejectBooking.user.lastName} for{' '}
-                  {confirmRejectBooking.car.brand} {confirmRejectBooking.car.model}
-                </p>
-                <p className="m-0 text-sm text-stone-500">
-                  This action will mark the booking as rejected. If the deposit was already paid,
-                  the payment status will move to refund pending.
-                </p>
-              </div>
+      <AdminBookingConfirmDialog
+        booking={confirmRejectBooking}
+        badgeLabel="Confirm rejection"
+        badgeVariant="danger"
+        title="Reject this booking?"
+        description="This action will mark the booking as rejected. If the deposit was already paid, the payment status will move to refund pending."
+        currentNote={confirmRejectBooking ? notesById[confirmRejectBooking.id]?.trim() || '' : ''}
+        cancelLabel="Keep booking"
+        confirmLabel="Yes, reject"
+        isBusy={actionBookingId === confirmRejectBooking?.id}
+        onCancel={() => setConfirmRejectBookingId('')}
+        onConfirm={async () => {
+          if (!confirmRejectBooking) {
+            return
+          }
 
-              <div className="rounded-2xl bg-white/60 p-4 text-sm text-stone-600">
-                <strong className="block text-stone-900">Current note</strong>
-                <span>{notesById[confirmRejectBooking.id]?.trim() || 'No note added.'}</span>
-              </div>
+          await runAction(confirmRejectBooking.id, rejectBooking)
+          setConfirmRejectBookingId('')
+        }}
+      />
 
-              <div className="flex flex-wrap justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={actionBookingId === confirmRejectBooking.id}
-                  onClick={() => setConfirmRejectBookingId('')}
-                >
-                  Keep booking
-                </Button>
-                <Button
-                  type="button"
-                  disabled={actionBookingId === confirmRejectBooking.id}
-                  onClick={async () => {
-                    await runAction(confirmRejectBooking.id, rejectBooking)
-                    setConfirmRejectBookingId('')
-                  }}
-                >
-                  {actionBookingId === confirmRejectBooking.id ? 'Processing...' : 'Yes, reject'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
+      <AdminBookingConfirmDialog
+        booking={confirmApproveBooking}
+        badgeLabel="Confirm approval"
+        title="Approve this booking?"
+        description="This action will confirm the booking after branch review. The current admin note will be kept with the approval."
+        currentNote={confirmApproveBooking ? notesById[confirmApproveBooking.id]?.trim() || '' : ''}
+        cancelLabel="Not yet"
+        confirmLabel="Yes, approve"
+        isBusy={actionBookingId === confirmApproveBooking?.id}
+        onCancel={() => setConfirmApproveBookingId('')}
+        onConfirm={async () => {
+          if (!confirmApproveBooking) {
+            return
+          }
 
-      {confirmApproveBooking ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4">
-          <Card className="w-full max-w-md">
-            <CardContent className="grid gap-4">
-              <div className="grid gap-2">
-                <Badge>Confirm approval</Badge>
-                <h2 className="m-0 text-xl font-semibold">Approve this booking?</h2>
-                <p className="m-0 text-stone-500">
-                  {confirmApproveBooking.user.firstName} {confirmApproveBooking.user.lastName} for{' '}
-                  {confirmApproveBooking.car.brand} {confirmApproveBooking.car.model}
-                </p>
-                <p className="m-0 text-sm text-stone-500">
-                  This action will confirm the booking after branch review. The current admin note
-                  will be kept with the approval.
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-white/60 p-4 text-sm text-stone-600">
-                <strong className="block text-stone-900">Current note</strong>
-                <span>{notesById[confirmApproveBooking.id]?.trim() || 'No note added.'}</span>
-              </div>
-
-              <div className="flex flex-wrap justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={actionBookingId === confirmApproveBooking.id}
-                  onClick={() => setConfirmApproveBookingId('')}
-                >
-                  Not yet
-                </Button>
-                <Button
-                  type="button"
-                  disabled={actionBookingId === confirmApproveBooking.id}
-                  onClick={async () => {
-                    await runAction(confirmApproveBooking.id, approveBooking)
-                    setConfirmApproveBookingId('')
-                  }}
-                >
-                  {actionBookingId === confirmApproveBooking.id
-                    ? 'Processing...'
-                    : 'Yes, approve'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
+          await runAction(confirmApproveBooking.id, approveBooking)
+          setConfirmApproveBookingId('')
+        }}
+      />
     </div>
   )
 }

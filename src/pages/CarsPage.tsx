@@ -1,27 +1,20 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { PageSection } from '../components/PageSection'
-import { Button } from '../components/ui/button'
 import { listCars } from '../features/cars/api'
 import { CarsFilterPanel } from '../features/cars/CarsFilterPanel'
+import { CarsPagination } from '../features/cars/CarsPagination'
 import { CarsResultsState } from '../features/cars/CarsResultsState'
-import { defaultCarFilters, minimumAdvanceBookingHours } from '../features/cars/constants'
+import { defaultCarFilters } from '../features/cars/constants'
 import type { CarFilters, CarListItem } from '../features/cars/types'
-import { EMPTY_SELECT_VALUE, filtersFromSearchParams, optionsFromCars } from '../features/cars/utils/cars-filter-utils'
-
-const carsPerPage = 6
-
-function getStoredCustomerCountryCode() {
-  return window.localStorage.getItem('customerCountryCode') ?? 'TH'
-}
-
-function getMinimumPickupTime() {
-  return Date.now() + minimumAdvanceBookingHours * 60 * 60 * 1000
-}
-
-function isBookableCar(car: CarListItem) {
-  return car.status === 'AVAILABLE' && car.isAvailable !== false
-}
+import { filtersFromSearchParams, optionsFromCars } from '../features/cars/utils/cars-filter-utils'
+import {
+  buildNextDraftFilters,
+  CARS_PER_PAGE,
+  getCarsPageFilterError,
+  getStoredCustomerCountryCode,
+  isBookableCar,
+} from '../features/cars/utils/cars-page-utils'
 
 export function CarsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -46,11 +39,11 @@ export function CarsPage() {
   const pendingFilterCount = Object.values(draftFilters).filter(Boolean).length
   const filterOptions = useMemo(() => optionsFromCars(allCars), [allCars])
   const customerCountryCode = getStoredCustomerCountryCode()
-  const totalPages = Math.max(1, Math.ceil(cars.length / carsPerPage))
+  const totalPages = Math.max(1, Math.ceil(cars.length / CARS_PER_PAGE))
   const paginatedCars = useMemo(() => {
-    const startIndex = (currentPage - 1) * carsPerPage
+    const startIndex = (currentPage - 1) * CARS_PER_PAGE
 
-    return cars.slice(startIndex, startIndex + carsPerPage)
+    return cars.slice(startIndex, startIndex + CARS_PER_PAGE)
   }, [cars, currentPage])
 
   useEffect(() => {
@@ -115,47 +108,20 @@ export function CarsPage() {
     setDraftState((currentState) => {
       const currentFilters = currentState.key === filtersKey ? currentState.filters : filters
 
-      return {
-        key: filtersKey,
-        filters: {
-          ...currentFilters,
-          [name]: value === EMPTY_SELECT_VALUE ? '' : value,
-          ...(name === 'pickupAt' &&
-          currentFilters.returnAt &&
-          value &&
-          new Date(currentFilters.returnAt) <= new Date(value)
-            ? { returnAt: '' }
-            : {}),
-        },
-      }
+      return buildNextDraftFilters({
+        currentFilters,
+        filtersKey,
+        name,
+        value,
+      })
     })
   }
 
   function applyFilters() {
-    if (
-      (draftFilters.pickupAt && !draftFilters.returnAt) ||
-      (!draftFilters.pickupAt && draftFilters.returnAt)
-    ) {
-      setFilterErrorMessage('Pickup and return must be selected together.')
-      return
-    }
+    const validationError = getCarsPageFilterError(draftFilters)
 
-    if (
-      draftFilters.pickupAt &&
-      new Date(draftFilters.pickupAt).getTime() < getMinimumPickupTime()
-    ) {
-      setFilterErrorMessage(
-        `Pickup must be at least ${minimumAdvanceBookingHours} hours from now.`,
-      )
-      return
-    }
-
-    if (
-      draftFilters.pickupAt &&
-      draftFilters.returnAt &&
-      new Date(draftFilters.pickupAt) >= new Date(draftFilters.returnAt)
-    ) {
-      setFilterErrorMessage('Return must be later than pickup.')
+    if (validationError) {
+      setFilterErrorMessage(validationError)
       return
     }
 
@@ -206,33 +172,15 @@ export function CarsPage() {
           onReset={resetFilters}
         />
 
-        {!isLoading && !errorMessage && cars.length > carsPerPage ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[28px] border border-black/8 bg-white/55 px-4 py-3 backdrop-blur">
-            <p className="m-0 text-sm text-stone-500">
-              Showing {(currentPage - 1) * carsPerPage + 1}-{Math.min(currentPage * carsPerPage, cars.length)} of {cars.length} cars
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-              >
-                Previous
-              </Button>
-              <span className="min-w-20 text-center text-sm font-medium text-stone-600">
-                {currentPage} / {totalPages}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+        {!isLoading && !errorMessage && cars.length > CARS_PER_PAGE ? (
+          <CarsPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCars={cars.length}
+            carsPerPage={CARS_PER_PAGE}
+            onPrevious={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            onNext={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+          />
         ) : null}
       </div>
     </PageSection>
