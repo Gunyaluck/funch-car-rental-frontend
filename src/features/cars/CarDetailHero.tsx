@@ -3,11 +3,17 @@ import type { CarDetailItem } from './types'
 type CarDetailHeroProps = {
   car: CarDetailItem
   coverImage?: string
+  onOpenGallery?: () => void
 }
 
-export function CarDetailHero({ car, coverImage }: CarDetailHeroProps) {
+export function CarDetailHero({ car, coverImage, onOpenGallery }: CarDetailHeroProps) {
   return (
-    <section className="relative min-h-[430px] overflow-hidden rounded-[34px] border border-black/10 bg-forest-900 shadow-[0_30px_80px_rgba(32,48,36,0.18)] max-md:min-h-[320px]">
+    <button
+      type="button"
+      onClick={onOpenGallery}
+      disabled={!coverImage || !onOpenGallery}
+      className="relative min-h-[430px] overflow-hidden rounded-[34px] border border-black/10 bg-forest-900 text-left shadow-[0_30px_80px_rgba(32,48,36,0.18)] transition hover:-translate-y-px disabled:cursor-default max-md:min-h-[320px]"
+    >
       {coverImage ? (
         <img
           src={coverImage}
@@ -32,6 +38,6 @@ export function CarDetailHero({ car, coverImage }: CarDetailHeroProps) {
           {car.brand} {car.model}
         </h2>
       </div>
-    </section>
+    </button>
   )
 }
