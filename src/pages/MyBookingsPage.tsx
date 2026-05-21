@@ -1,12 +1,9 @@
-import { isAxiosError } from 'axios'
 import { ArrowRight, CalendarPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageSection } from '../components/PageSection'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
 import { buttonVariants } from '../components/ui/button-variants'
 import { Card, CardContent } from '../components/ui/card'
 import {
@@ -14,108 +11,10 @@ import {
   listMyBookings,
   startDepositCheckout,
 } from '../features/bookings/api'
-import type { BookingItem, BookingStatus, PaymentStatus } from '../features/bookings/types'
-import { formatMoney } from '../features/cars/utils/car-detail-utils'
-
-function getApiErrorMessage(error: unknown, fallback: string) {
-  if (isAxiosError<{ message?: string }>(error)) {
-    return error.response?.data?.message ?? fallback
-  }
-
-  return error instanceof Error ? error.message : fallback
-}
-
-function formatDateTime(value: string, timezone: string) {
-  return new Intl.DateTimeFormat('en', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: timezone,
-  }).format(new Date(value))
-}
-
-function getStatusVariant(status: BookingStatus, paymentStatus: PaymentStatus) {
-  if (paymentStatus === 'REFUND_PENDING' || paymentStatus === 'REFUNDED') {
-    return 'danger' as const
-  }
-
-  if (status === 'REJECTED' || status === 'CANCELLED') {
-    return 'danger' as const
-  }
-
-  if (status === 'APPROVED' || status === 'COMPLETED') {
-    return 'default' as const
-  }
-
-  return 'muted' as const
-}
-
-function getBookingHeadline(booking: BookingItem) {
-  if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PENDING') {
-    return 'Deposit required'
-  }
-
-  if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PAID') {
-    return 'Awaiting confirmation'
-  }
-
-  if (booking.status === 'APPROVED') {
-    return 'Confirmed by branch'
-  }
-
-  if (booking.paymentStatus === 'REFUND_PENDING') {
-    return 'Refund pending'
-  }
-
-  if (booking.paymentStatus === 'REFUNDED') {
-    return 'Refund completed'
-  }
-
-  if (booking.paymentStatus === 'EXPIRED') {
-    return 'Deposit window expired'
-  }
-
-  return booking.status
-}
-
-function getBookingMessage(booking: BookingItem) {
-  if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PENDING') {
-    return 'Pay the deposit to move this booking into the confirmation queue.'
-  }
-
-  if (booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PAID') {
-    return 'Your booking is awaiting confirmation.'
-  }
-
-  if (booking.status === 'APPROVED') {
-    return 'Branch confirmed the booking. Bring these details on pickup day.'
-  }
-
-  if (booking.status === 'REJECTED' && booking.paymentStatus === 'REFUND_PENDING') {
-    return 'The branch could not confirm this booking. Refund still needs to be processed.'
-  }
-
-  if (booking.status === 'CANCELLED' && booking.paymentStatus === 'REFUND_PENDING') {
-    return 'This booking was cancelled in time. Refund still needs to be processed.'
-  }
-
-  if (booking.paymentStatus === 'REFUNDED') {
-    return 'The deposit has been marked as refunded.'
-  }
-
-  if (booking.paymentStatus === 'EXPIRED') {
-    return 'The deposit was not paid before the payment window closed.'
-  }
-
-  return 'Track confirmation, payment progress, and any admin notes here.'
-}
-
-function canPayDeposit(booking: BookingItem) {
-  return booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PENDING'
-}
-
-function canCancelBooking(booking: BookingItem) {
-  return booking.canCancel && ['PENDING', 'APPROVED'].includes(booking.status)
-}
+import { MyBookingCancelDialog } from '../features/bookings/MyBookingCancelDialog'
+import { MyBookingCard } from '../features/bookings/MyBookingCard'
+import type { BookingItem } from '../features/bookings/types'
+import { getMyBookingsApiErrorMessage } from '../features/bookings/my-bookings-utils'
 
 export function MyBookingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -144,7 +43,7 @@ export function MyBookingsPage() {
         }
       } catch (error) {
         if (isCurrent) {
-          setErrorMessage(getApiErrorMessage(error, 'Unable to load your bookings.'))
+          setErrorMessage(getMyBookingsApiErrorMessage(error, 'Unable to load your bookings.'))
         }
       } finally {
         if (isCurrent) {
@@ -189,7 +88,7 @@ export function MyBookingsPage() {
 
       setErrorMessage('Payment checkout is temporarily unavailable. Please try again shortly.')
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, 'Unable to start the deposit checkout.'))
+      setErrorMessage(getMyBookingsApiErrorMessage(error, 'Unable to start the deposit checkout.'))
     } finally {
       setActionBookingId('')
     }
@@ -205,7 +104,7 @@ export function MyBookingsPage() {
         currentBookings.map((booking) => (booking.id === bookingId ? updatedBooking : booking)),
       )
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, 'Unable to cancel this booking.'))
+      setErrorMessage(getMyBookingsApiErrorMessage(error, 'Unable to cancel this booking.'))
     } finally {
       setActionBookingId('')
     }
@@ -266,107 +165,13 @@ export function MyBookingsPage() {
             const isBusy = actionBookingId === booking.id
 
             return (
-              <Card key={booking.id}>
-                <CardContent className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Badge variant={getStatusVariant(booking.status, booking.paymentStatus)}>
-                      {getBookingHeadline(booking)}
-                    </Badge>
-                    <h2 className="m-0 text-xl font-semibold">
-                      {booking.car.brand} {booking.car.model}
-                    </h2>
-                    <p className="m-0 text-stone-500">
-                      {booking.car.name} · {booking.car.city}, {booking.car.countryCode} ·{' '}
-                      {booking.car.year}
-                    </p>
-                    <p className="m-0 text-sm text-stone-500">{getBookingMessage(booking)}</p>
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
-                      <span className="text-sm font-semibold text-stone-500">Pickup</span>
-                      <span>{formatDateTime(booking.pickupAt, booking.pickupTimezone)}</span>
-                    </div>
-                    <div className="grid gap-1 rounded-2xl bg-white/60 p-4">
-                      <span className="text-sm font-semibold text-stone-500">Return</span>
-                      <span>{formatDateTime(booking.returnAt, booking.pickupTimezone)}</span>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 rounded-2xl bg-white/60 p-4 md:grid-cols-3">
-                    <div>
-                      <span className="block text-sm font-semibold text-stone-500">Deposit</span>
-                      <strong>{formatMoney(booking.currencyCode, booking.depositAmount)}</strong>
-                    </div>
-                    <div>
-                      <span className="block text-sm font-semibold text-stone-500">
-                        Pay at pickup
-                      </span>
-                      <strong>
-                        {formatMoney(booking.currencyCode, booking.amountDueAtPickup)}
-                      </strong>
-                    </div>
-                    <div>
-                      <span className="block text-sm font-semibold text-stone-500">Total</span>
-                      <strong>{formatMoney(booking.currencyCode, booking.grandTotal)}</strong>
-                    </div>
-                  </div>
-
-                  {booking.depositDueAt ? (
-                    <p
-                      className={
-                        booking.status === 'PENDING' && booking.paymentStatus === 'DEPOSIT_PENDING'
-                          ? 'm-0 text-sm font-medium text-red-600'
-                          : 'm-0 text-sm text-stone-500'
-                      }
-                    >
-                      Deposit due by {formatDateTime(booking.depositDueAt, booking.pickupTimezone)}
-                    </p>
-                  ) : null}
-
-                  {booking.options.length ? (
-                    <div className="grid gap-2">
-                      <span className="text-sm font-semibold text-stone-500">Options</span>
-                      {booking.options.map((option) => (
-                        <div
-                          key={option.id}
-                          className="flex justify-between gap-3 rounded-2xl bg-white/60 px-4 py-3"
-                        >
-                          <span>{option.name}</span>
-                          <strong>{formatMoney(booking.currencyCode, option.totalPrice)}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {booking.adminNote ? (
-                    <Alert title="Branch note">{booking.adminNote}</Alert>
-                  ) : null}
-
-                  <div className="flex flex-wrap gap-3">
-                    {canPayDeposit(booking) ? (
-                      <Button
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => handlePayDeposit(booking.id)}
-                      >
-                        {isBusy ? 'Processing...' : 'Pay deposit now'}
-                      </Button>
-                    ) : null}
-
-                    {canCancelBooking(booking) ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={isBusy}
-                        onClick={() => setConfirmCancelBookingId(booking.id)}
-                      >
-                        {isBusy ? 'Processing...' : 'Cancel booking'}
-                      </Button>
-                    ) : null}
-                  </div>
-                </CardContent>
-              </Card>
+              <MyBookingCard
+                key={booking.id}
+                booking={booking}
+                isBusy={isBusy}
+                onPayDeposit={() => handlePayDeposit(booking.id)}
+                onCancel={() => setConfirmCancelBookingId(booking.id)}
+              />
             )
           })}
         </div>
@@ -404,56 +209,19 @@ export function MyBookingsPage() {
         </aside>
       </div>
 
-      {confirmCancelBooking
-        ? createPortal(
-            <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4">
-              <Card className="w-full max-w-md">
-                <CardContent className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Badge variant="danger">Confirm cancellation</Badge>
-                    <h2 className="m-0 text-xl font-semibold">Cancel this booking?</h2>
-                    <p className="m-0 text-stone-500">
-                      {confirmCancelBooking.car.brand} {confirmCancelBooking.car.model} for pickup
-                      on{' '}
-                      {formatDateTime(
-                        confirmCancelBooking.pickupAt,
-                        confirmCancelBooking.pickupTimezone,
-                      )}
-                    </p>
-                    <p className="m-0 text-sm text-stone-500">
-                      This action will cancel the booking. If a deposit was already paid, the
-                      payment status may move to refund handling.
-                    </p>
-                  </div>
+      <MyBookingCancelDialog
+        booking={confirmCancelBooking}
+        isBusy={actionBookingId === confirmCancelBooking?.id}
+        onCancel={() => setConfirmCancelBookingId('')}
+        onConfirm={async () => {
+          if (!confirmCancelBooking) {
+            return
+          }
 
-                  <div className="flex flex-wrap justify-end gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={actionBookingId === confirmCancelBooking.id}
-                      onClick={() => setConfirmCancelBookingId('')}
-                    >
-                      Keep booking
-                    </Button>
-                    <Button
-                      type="button"
-                      disabled={actionBookingId === confirmCancelBooking.id}
-                      onClick={async () => {
-                        await handleCancelBooking(confirmCancelBooking.id)
-                        setConfirmCancelBookingId('')
-                      }}
-                    >
-                      {actionBookingId === confirmCancelBooking.id
-                        ? 'Processing...'
-                        : 'Yes, cancel'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>,
-            document.body,
-          )
-        : null}
+          await handleCancelBooking(confirmCancelBooking.id)
+          setConfirmCancelBookingId('')
+        }}
+      />
     </PageSection>
   )
 }
