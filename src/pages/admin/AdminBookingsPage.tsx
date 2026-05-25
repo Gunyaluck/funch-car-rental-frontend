@@ -1,40 +1,39 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  AdminDataTable,
+  AdminDataTableBody,
+  AdminDataTableCell,
+  AdminDataTableContainer,
+  AdminDataTableHead,
+  AdminDataTableHeaderCell,
+  AdminDataTableRow,
+} from '../../components/ui/admin-data-table'
 import { Alert } from '../../components/ui/alert'
 import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
-import {
-  AdminBookingCard,
-} from '../../features/bookings/AdminBookingCard'
-import {
-  AdminBookingConfirmDialog,
-} from '../../features/bookings/AdminBookingConfirmDialog'
 import {
   AdminBookingsFiltersCard,
 } from '../../features/bookings/AdminBookingsFiltersCard'
 import {
-  approveBooking,
   listAdminBookings,
-  markBookingRefunded,
-  rejectBooking,
-  saveBookingAdminNote,
 } from '../../features/bookings/api'
 import type { BookingItem, BookingStatus, PaymentStatus } from '../../features/bookings/types'
 import {
+  formatAdminBookingDateTime,
   getAdminBookingsApiErrorMessage,
+  getAdminBookingStatusVariant,
+  getAdminBookingSummaryLabel,
   matchesAdminBookingFilters,
   PAGE_SIZE,
 } from '../../features/bookings/admin-bookings-utils'
+import { formatMoney } from '../../features/cars/utils/car-detail-utils'
 
 export function AdminBookingsPage() {
+  const navigate = useNavigate()
   const [bookings, setBookings] = useState<BookingItem[]>([])
   const [errorMessage, setErrorMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [actionBookingId, setActionBookingId] = useState('')
-  const [savingNoteBookingId, setSavingNoteBookingId] = useState('')
-  const [confirmApproveBookingId, setConfirmApproveBookingId] = useState('')
-  const [confirmRejectBookingId, setConfirmRejectBookingId] = useState('')
-  const [notesById, setNotesById] = useState<Record<string, string>>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'ALL'>('ALL')
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'ALL'>('ALL')
@@ -52,9 +51,6 @@ export function AdminBookingsPage() {
 
         if (isCurrent) {
           setBookings(result)
-          setNotesById(
-            Object.fromEntries(result.map((booking) => [booking.id, booking.adminNote ?? ''])),
-          )
         }
       } catch (error) {
         if (isCurrent) {
@@ -74,59 +70,6 @@ export function AdminBookingsPage() {
     }
   }, [])
 
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, statusFilter, paymentFilter])
-
-  async function runAction(
-    bookingId: string,
-    action: (bookingId: string, payload: { adminNote?: string }) => Promise<BookingItem>,
-  ) {
-    setActionBookingId(bookingId)
-    setErrorMessage('')
-
-    try {
-      const updatedBooking = await action(bookingId, {
-        adminNote: notesById[bookingId]?.trim() || undefined,
-      })
-
-      setBookings((currentBookings) =>
-        currentBookings.map((booking) => (booking.id === bookingId ? updatedBooking : booking)),
-      )
-      setNotesById((currentNotes) => ({
-        ...currentNotes,
-        [bookingId]: updatedBooking.adminNote ?? '',
-      }))
-    } catch (error) {
-      setErrorMessage(getAdminBookingsApiErrorMessage(error, 'Unable to update this booking.'))
-    } finally {
-      setActionBookingId('')
-    }
-  }
-
-  async function handleSaveNote(bookingId: string) {
-    setSavingNoteBookingId(bookingId)
-    setErrorMessage('')
-
-    try {
-      const updatedBooking = await saveBookingAdminNote(bookingId, {
-        adminNote: notesById[bookingId]?.trim() || undefined,
-      })
-
-      setBookings((currentBookings) =>
-        currentBookings.map((booking) => (booking.id === bookingId ? updatedBooking : booking)),
-      )
-      setNotesById((currentNotes) => ({
-        ...currentNotes,
-        [bookingId]: updatedBooking.adminNote ?? '',
-      }))
-    } catch (error) {
-      setErrorMessage(getAdminBookingsApiErrorMessage(error, 'Unable to save this note.'))
-    } finally {
-      setSavingNoteBookingId('')
-    }
-  }
-
   const normalizedSearch = searchTerm.trim().toLowerCase()
   const filteredBookings = bookings.filter((booking) =>
     matchesAdminBookingFilters({
@@ -142,10 +85,6 @@ export function AdminBookingsPage() {
     (safeCurrentPage - 1) * PAGE_SIZE,
     safeCurrentPage * PAGE_SIZE,
   )
-  const confirmApproveBooking =
-    bookings.find((booking) => booking.id === confirmApproveBookingId) ?? null
-  const confirmRejectBooking =
-    bookings.find((booking) => booking.id === confirmRejectBookingId) ?? null
 
   return (
     <div className="grid gap-4">
@@ -155,9 +94,18 @@ export function AdminBookingsPage() {
         searchTerm={searchTerm}
         statusFilter={statusFilter}
         paymentFilter={paymentFilter}
-        onSearchTermChange={setSearchTerm}
-        onStatusFilterChange={setStatusFilter}
-        onPaymentFilterChange={setPaymentFilter}
+        onSearchTermChange={(value) => {
+          setSearchTerm(value)
+          setCurrentPage(1)
+        }}
+        onStatusFilterChange={(value) => {
+          setStatusFilter(value)
+          setCurrentPage(1)
+        }}
+        onPaymentFilterChange={(value) => {
+          setPaymentFilter(value)
+          setCurrentPage(1)
+        }}
       />
 
       {isLoading ? (
@@ -182,31 +130,87 @@ export function AdminBookingsPage() {
         </Card>
       ) : null}
 
-      {paginatedBookings.map((booking) => {
-        const isBusy = actionBookingId === booking.id || savingNoteBookingId === booking.id
-        const isSavingNote = savingNoteBookingId === booking.id
-        const note = notesById[booking.id] ?? ''
+      {!isLoading && paginatedBookings.length > 0 ? (
+        <Card>
+          <CardContent className="grid gap-4">
+            <div>
+              <h2 className="m-0 text-xl font-semibold">Booking queue</h2>
+              <p className="m-0 text-stone-500">
+                Keep the table lean, then open the full booking on row click.
+              </p>
+            </div>
 
-        return (
-          <AdminBookingCard
-            key={booking.id}
-            booking={booking}
-            note={note}
-            isBusy={isBusy}
-            isSavingNote={isSavingNote}
-            onNoteChange={(value) =>
-              setNotesById((currentNotes) => ({
-                ...currentNotes,
-                [booking.id]: value,
-              }))
-            }
-            onSaveNote={() => handleSaveNote(booking.id)}
-            onApprove={() => setConfirmApproveBookingId(booking.id)}
-            onReject={() => setConfirmRejectBookingId(booking.id)}
-            onMarkRefundCompleted={() => runAction(booking.id, markBookingRefunded)}
-          />
-        )
-      })}
+            <AdminDataTableContainer>
+              <AdminDataTable>
+                <AdminDataTableHead>
+                  <tr>
+                    <AdminDataTableHeaderCell>Customer</AdminDataTableHeaderCell>
+                    <AdminDataTableHeaderCell>Car</AdminDataTableHeaderCell>
+                    <AdminDataTableHeaderCell>Pickup</AdminDataTableHeaderCell>
+                    <AdminDataTableHeaderCell>Deposit</AdminDataTableHeaderCell>
+                    <AdminDataTableHeaderCell>Status</AdminDataTableHeaderCell>
+                  </tr>
+                </AdminDataTableHead>
+                <AdminDataTableBody>
+                  {paginatedBookings.map((booking) => (
+                    <AdminDataTableRow
+                      key={booking.id}
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/admin/bookings/${booking.id}`)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          navigate(`/admin/bookings/${booking.id}`)
+                        }
+                      }}
+                      role="link"
+                      tabIndex={0}
+                    >
+                      <AdminDataTableCell className="min-w-[220px]">
+                        <div className="grid gap-1">
+                          <div className="font-semibold text-forest-900">
+                            {booking.user.firstName} {booking.user.lastName}
+                          </div>
+                          <div className="text-sm text-stone-500">{booking.user.email}</div>
+                        </div>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
+                        <div className="grid gap-1">
+                          <div className="font-semibold text-forest-900">
+                            {booking.car.brand} {booking.car.model}
+                          </div>
+                          <div className="text-sm text-stone-500">{booking.car.city}</div>
+                        </div>
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
+                        {formatAdminBookingDateTime(booking.pickupAt, booking.pickupTimezone)}
+                      </AdminDataTableCell>
+                      <AdminDataTableCell>
+                        {formatMoney(booking.currencyCode, booking.depositAmount)}
+                      </AdminDataTableCell>
+                      <AdminDataTableCell className="min-w-[190px]">
+                        <div className="grid gap-2">
+                          <Badge
+                            variant={getAdminBookingStatusVariant(
+                              booking.paymentStatus,
+                              booking.status,
+                            )}
+                          >
+                            {getAdminBookingSummaryLabel(booking)}
+                          </Badge>
+                          <div className="text-sm text-stone-500">
+                            {booking.status} · {booking.paymentStatus}
+                          </div>
+                        </div>
+                      </AdminDataTableCell>
+                    </AdminDataTableRow>
+                  ))}
+                </AdminDataTableBody>
+              </AdminDataTable>
+            </AdminDataTableContainer>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {!isLoading && filteredBookings.length > 0 ? (
         <Card>
@@ -219,70 +223,29 @@ export function AdminBookingsPage() {
             </span>
 
             <div className="flex items-center gap-2">
-              <Button
+              <button
                 type="button"
-                variant="outline"
+                className="inline-flex items-center rounded-2xl border border-black/12 bg-white/60 px-4 py-[11px] font-semibold text-forest-900 transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={safeCurrentPage === 1}
                 onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
               >
                 Previous
-              </Button>
+              </button>
               <span className="text-sm text-stone-500">
                 Page {safeCurrentPage} of {totalPages}
               </span>
-              <Button
+              <button
                 type="button"
-                variant="outline"
+                className="inline-flex items-center rounded-2xl border border-black/12 bg-white/60 px-4 py-[11px] font-semibold text-forest-900 transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={safeCurrentPage === totalPages}
                 onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
               >
                 Next
-              </Button>
+              </button>
             </div>
           </CardContent>
         </Card>
       ) : null}
-
-      <AdminBookingConfirmDialog
-        booking={confirmRejectBooking}
-        badgeLabel="Confirm rejection"
-        badgeVariant="danger"
-        title="Reject this booking?"
-        description="This action will mark the booking as rejected. If the deposit was already paid, the payment status will move to refund pending."
-        currentNote={confirmRejectBooking ? notesById[confirmRejectBooking.id]?.trim() || '' : ''}
-        cancelLabel="Keep booking"
-        confirmLabel="Yes, reject"
-        isBusy={actionBookingId === confirmRejectBooking?.id}
-        onCancel={() => setConfirmRejectBookingId('')}
-        onConfirm={async () => {
-          if (!confirmRejectBooking) {
-            return
-          }
-
-          await runAction(confirmRejectBooking.id, rejectBooking)
-          setConfirmRejectBookingId('')
-        }}
-      />
-
-      <AdminBookingConfirmDialog
-        booking={confirmApproveBooking}
-        badgeLabel="Confirm approval"
-        title="Approve this booking?"
-        description="This action will confirm the booking after branch review. The current admin note will be kept with the approval."
-        currentNote={confirmApproveBooking ? notesById[confirmApproveBooking.id]?.trim() || '' : ''}
-        cancelLabel="Not yet"
-        confirmLabel="Yes, approve"
-        isBusy={actionBookingId === confirmApproveBooking?.id}
-        onCancel={() => setConfirmApproveBookingId('')}
-        onConfirm={async () => {
-          if (!confirmApproveBooking) {
-            return
-          }
-
-          await runAction(confirmApproveBooking.id, approveBooking)
-          setConfirmApproveBookingId('')
-        }}
-      />
     </div>
   )
 }

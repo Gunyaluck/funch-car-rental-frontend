@@ -5,14 +5,22 @@ import { buttonVariants } from '../components/ui/button-variants'
 import { Card, CardContent } from '../components/ui/card'
 import { listCars } from '../features/cars/api'
 import { defaultCarFilters } from '../features/cars/constants'
+import { getCountryName } from '../features/cars/country-names'
 import { HomeHeroCarousel } from '../features/home/HomeHeroCarousel'
 import { carToHeroSlide, fallbackHeroSlide, homeMetrics, homeSteps } from '../features/home/home-data'
 import type { CarListItem } from '../features/cars/types'
 import { cn } from '../lib/utils'
 
 export function HomePage() {
-  const [featuredCars, setFeaturedCars] = useState<CarListItem[]>([])
+  const [availableCars, setAvailableCars] = useState<CarListItem[]>([])
   const [activeSlideIndex, setActiveSlideIndex] = useState(0)
+  const featuredCars = availableCars.slice(0, 6)
+  const availableCountries = Array.from(new Set(availableCars.map((car) => car.countryCode)))
+    .sort()
+    .map((countryCode) => ({
+      code: countryCode,
+      label: getCountryName(countryCode),
+    }))
   const heroSlides = featuredCars.length > 0
     ? featuredCars.map(carToHeroSlide)
     : [fallbackHeroSlide]
@@ -22,15 +30,15 @@ export function HomePage() {
 
     async function fetchFeaturedCars() {
       try {
-        const result = await listCars(defaultCarFilters, 6)
+        const result = await listCars(defaultCarFilters, 100)
 
         if (isCurrent) {
-          setFeaturedCars(result.data.filter((car) => car.isAvailable !== false))
+          setAvailableCars(result.data.filter((car) => car.isAvailable !== false))
           setActiveSlideIndex(0)
         }
       } catch {
         if (isCurrent) {
-          setFeaturedCars([])
+          setAvailableCars([])
         }
       }
     }
@@ -64,7 +72,7 @@ export function HomePage() {
     <>
       <section className="relative overflow-hidden pt-10 pb-12 md:pt-20 md:pb-14">
         <div className="mx-auto grid w-[min(1320px,calc(100%-32px))] grid-cols-12 items-center gap-8 max-md:w-[min(100%,calc(100%-24px))]">
-          <div className="col-span-12 grid gap-5 lg:col-span-5">
+          <div className="col-span-12 grid min-w-0 gap-5 lg:col-span-5">
             <div className="grid gap-4">
               <h1 className="m-0 max-w-[760px] font-body text-[3.25rem] leading-[0.95] font-black tracking-normal md:text-[5.5rem]">
                 Rent the right car.
@@ -97,6 +105,31 @@ export function HomePage() {
                 </div>
               ))}
             </div>
+
+            {availableCountries.length > 0 ? (
+              <div className="grid min-w-0 gap-2 pt-2">
+                <span className="text-[0.78rem] font-black uppercase tracking-[0.14em] text-forest-900">
+                  Available Countries
+                </span>
+                <div className="max-w-full overflow-hidden rounded-[28px] border border-black/8 bg-white/60 px-4 py-3 backdrop-blur-sm">
+                  <div className="relative max-w-full overflow-hidden">
+                    <div
+                      className="flex w-max items-center gap-2 pr-2"
+                      style={{ animation: 'supportedCountriesMarquee 24s linear infinite' }}
+                    >
+                      {[...availableCountries, ...availableCountries].map((country, index) => (
+                        <span
+                          key={`${country.code}-${index}`}
+                          className="rounded-full border border-black/8 bg-white px-3 py-2 text-sm font-semibold whitespace-nowrap text-forest-900"
+                        >
+                          {country.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="col-span-12 lg:col-span-7">
@@ -133,6 +166,20 @@ export function HomePage() {
           })}
         </div>
       </section>
+
+      <style>
+        {`
+          @keyframes supportedCountriesMarquee {
+            from {
+              transform: translateX(0);
+            }
+            to {
+              transform: translateX(-50%);
+            }
+          }
+        `}
+      </style>
+
     </>
   )
 }
